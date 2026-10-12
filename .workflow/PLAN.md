@@ -44,7 +44,7 @@ Runs: cmake configures an empty project in ~/src/matchforge
 - Depends on: 1.1
 - Wave: 1
 - Verify: `clang-format --version; find . -maxdepth 2 -type d | sort`
-- Status: todo
+- Status: done (checked 2026-10-12, see EVIDENCE.md)
 ## Phase 2: code and targets
 Plain English: the actual code files are written and the build is taught about them. At the end, one command builds the server, the bots, the core library, the message definitions, and the tests.
 Runs: `cmake --build --preset debug` builds all five targets

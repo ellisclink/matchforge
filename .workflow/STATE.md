@@ -1,10 +1,10 @@
 # State
 Milestone: v0 - project setup
 Mode: full
-Phase: 1 of 4 - toolchain check and skeleton
-Task: 1.2 - folder layout and config files
+Phase: 2 of 4 - code and targets
+Task: 2.1 - vcpkg.json with 8 deps and builtin-baseline
 Status: in progress
-Next action: create the layout folders, .gitignore, .editorconfig, .clang-format, and .gitkeep files (task 1.2), then run its verify step.
+Next action: write vcpkg.json with the 8 libraries and a pinned builtin-baseline (D-005), then verify.
 
 ## Log
 - 2026-10-12: Stage 0 research done (see RESEARCH.md). Repo cloned to ~/src/matchforge in the NVIDIA-Workbench distro, branch milestone-0-setup. CLAUDE.md added. Planning files committed for review.
