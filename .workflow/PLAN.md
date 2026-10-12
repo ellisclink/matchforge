@@ -54,7 +54,7 @@ Runs: `cmake --build --preset debug` builds all five targets
 - Depends on: 1.2
 - Wave: 2
 - Verify: `$VCPKG_ROOT/vcpkg x-update-baseline --dry-run` shows baseline set
-- Status: todo
+- Status: done (checked 2026-10-12, see EVIDENCE.md)
 ### Task 2.2: proto/matchforge.proto and matchforge_proto library
 - Serves: AC-1
 - Files: proto/matchforge.proto, CMakeLists.txt
