@@ -1,10 +1,11 @@
 # State
 Milestone: v0 - project setup
 Mode: full
-Phase: 0 of 4 - planning (Stage 2 spec drafted, awaiting approval)
-Task: none
-Status: paused
-Next action: user approves SPEC.md, PLAN.md and the proposed items in DECISIONS.md; then start Phase 1.
+Phase: 1 of 4 - toolchain check and skeleton
+Task: 1.2 - folder layout and config files
+Status: in progress
+Next action: create the layout folders, .gitignore, .editorconfig, .clang-format, and .gitkeep files (task 1.2), then run its verify step.
 
 ## Log
 - 2026-10-12: Stage 0 research done (see RESEARCH.md). Repo cloned to ~/src/matchforge in the NVIDIA-Workbench distro, branch milestone-0-setup. CLAUDE.md added. Planning files committed for review.
+- 2026-10-12: User approved SPEC.md, PLAN.md, and D-004 to D-007 (see D-008). Docker Desktop started; `docker` and `docker compose` already work from the NVIDIA-Workbench distro.

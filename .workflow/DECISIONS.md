@@ -14,11 +14,22 @@
 - Date: 2026-10-12
 - Decision: CLAUDE.md and .workflow/ are committed and pushed to milestone-0-setup before any code.
 - Reason: User request; gives a reviewable record of the plan.
-## D-004 (PROPOSED, awaiting approval): 4-space indent
+## D-004: 4-space indent (ACCEPTED 2026-10-12)
+- Decision: .clang-format and .editorconfig use 4 spaces.
 - Reason: Readability in a multi-module project. Google default is 2.
-## D-005 (PROPOSED, awaiting approval): Pin vcpkg builtin-baseline
+- Rejected alternatives: Google default of 2 spaces.
+## D-005: Pin vcpkg builtin-baseline (ACCEPTED 2026-10-12)
+- Decision: vcpkg.json sets a builtin-baseline commit so every build uses the same library versions.
 - Reason: Reproducible builds and effective binary caching in CI.
-## D-006 (PROPOSED, awaiting approval): -Wall -Wextra -Werror; ASan/UBSan in the debug preset
+- Rejected alternatives: Floating latest versions.
+## D-006: Strict warnings; ASan/UBSan in the debug preset (ACCEPTED 2026-10-12)
+- Decision: -Wall -Wextra -Werror everywhere. Debug preset also enables AddressSanitizer and UndefinedBehaviorSanitizer.
 - Reason: Catch bugs early; standard C++ practice.
-## D-007 (PROPOSED, awaiting approval): .gitkeep in empty layout folders; pin Docker base image versions
+- Rejected alternatives: Default warnings only.
+## D-007: .gitkeep in empty folders; pinned Docker base images (ACCEPTED 2026-10-12)
+- Decision: Empty layout folders get a .gitkeep file. Dockerfile uses pinned versions (ubuntu:24.04, debian:bookworm-slim), never latest.
 - Reason: Git does not track empty folders; "latest" tags make builds non-reproducible.
+- Rejected alternatives: Leaving folders empty; using latest tags.
+## D-008: Spec and plan approved (2026-10-12)
+- Decision: SPEC.md (7 acceptance criteria) and PLAN.md (4 phases) approved as written. Phase 1 may begin.
+- Reason: User review, including the plain-English summary.
