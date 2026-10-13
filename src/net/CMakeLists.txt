@@ -5,8 +5,13 @@
 # and on matchforge_auth for register and login. It does not depend on matchforge_core
 # or on storage directly.
 
+# matchforge_framing: only the length-prefix encoder and decoder. Kept separate so
+# clients (the bot simulator) can frame messages without pulling in the whole server.
+add_library(matchforge_framing STATIC Framing.cpp)
+target_include_directories(matchforge_framing PUBLIC "${PROJECT_SOURCE_DIR}/src")
+target_link_libraries(matchforge_framing PRIVATE matchforge_warnings)
+
 add_library(matchforge_net STATIC
-  Framing.cpp
   Session.cpp
   Server.cpp)
 
@@ -16,6 +21,7 @@ target_link_libraries(matchforge_net
   PUBLIC
     Boost::asio          # sockets, timers, io_context
     matchforge_proto     # Envelope and the other message types
+    matchforge_framing   # length-prefixed frames
     matchforge_auth      # register and login
     matchforge_lobby     # the matchmaking queue
     Threads::Threads     # pthreads, needed by Asio on Linux

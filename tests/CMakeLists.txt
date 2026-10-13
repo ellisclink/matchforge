@@ -17,7 +17,10 @@ add_executable(matchforge_tests
   store/RedisAccountStoreTest.cpp   # real Redis; skipped unless MATCHFORGE_TEST_REDIS_PORT is set
   net/FramingTest.cpp               # frame encoder and decoder (no sockets)
   net/ServerTest.cpp                # integration: a real server on loopback and a client socket
-  lobby/LobbyTest.cpp)              # queue, matches, results and concurrency, over TCP               # integration: a real server on loopback and a client socket
+  lobby/LobbyTest.cpp               # queue, matches, results and concurrency, over TCP
+  bots/BotOptionsTest.cpp           # bot command-line parsing
+  bots/BotReportTest.cpp            # average and percentiles
+  bots/BotClientTest.cpp)           # the bot client against a real server               # integration: a real server on loopback and a client socket
 
 # Libraries the tests need.
 #   matchforge_core      the code under test (version(), validation)
@@ -36,6 +39,7 @@ target_link_libraries(matchforge_tests
     matchforge_auth
     matchforge_store
     matchforge_lobby
+    matchforge_botlib
     Boost::asio
     Threads::Threads
     GTest::gtest_main

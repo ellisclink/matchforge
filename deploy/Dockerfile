@@ -43,6 +43,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 \
 RUN useradd --system --no-create-home --shell /usr/sbin/nologin matchforge
 
 COPY --from=build /src/build/release/src/server/matchforge_server /usr/local/bin/matchforge_server
+# The bot load simulator ships in the same image; compose runs it on demand (profile "load").
+COPY --from=build /src/build/release/src/bots/matchforge_bots /usr/local/bin/matchforge_bots
 
 USER matchforge
 ENTRYPOINT ["/usr/local/bin/matchforge_server"]

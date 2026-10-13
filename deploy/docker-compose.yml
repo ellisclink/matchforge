@@ -13,6 +13,8 @@ services:
       retries: 10
 
   server:
+    # Naming the image lets the bots service below reuse it instead of building again.
+    image: matchforge:local
     build:
       # The build context is the repo root, so the Dockerfile can copy the whole project.
       context: ..
@@ -34,3 +36,14 @@ services:
     # The server now runs until stopped (Milestone 1). Restart it after a crash, but not
     # after an explicit `docker compose stop`.
     restart: unless-stopped
+
+  # Load simulator. Not started by "up"; run it on demand:
+  #   docker compose -f deploy/docker-compose.yml --profile load run --rm bots
+  # Extra flags after "bots" replace the defaults below, for example: ... run --rm bots --bots 200
+  bots:
+    image: matchforge:local
+    profiles: ["load"]
+    depends_on:
+      - server
+    entrypoint: ["/usr/local/bin/matchforge_bots", "--host", "server", "--secret", "${MATCHFORGE_RESULT_SECRET:-}"]
+    command: ["--bots", "20", "--rounds", "3"]
