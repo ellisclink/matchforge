@@ -20,6 +20,11 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    # Where the server finds Redis. "redis" is the service name above, which Docker's
+    # internal DNS resolves on this network.
+    environment:
+      MATCHFORGE_REDIS_HOST: redis
+      MATCHFORGE_REDIS_PORT: "6379"
     # Publish the game port to your computer, so a client on the host can connect.
     ports:
       - "7777:7777"

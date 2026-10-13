@@ -72,6 +72,18 @@
 ## v1 AC-8 - 2026-10-13
 - Command: clang-format 14.0.6 `--dry-run --Werror` on every .cpp and .h file
 - Result: pass (FORMAT_EXIT=0)
+## v2 (accounts and login) - 2026-10-13
+- Debug build and ctest: 100% passed, 41 of 41 tests, with MATCHFORGE_TEST_REDIS_PORT=6380 (real Redis) so the 3 Redis tests run.
+- Release build and ctest: 100% passed, 41 of 41.
+- Formatting: clang-format 14.0.6 --dry-run --Werror passes on all .cpp and .h files.
+- Docker: docker compose up --build. Server log shows "accounts stored in redis at redis:6379" and "Connected to Redis server ... (TLS disabled)". Server stays up.
+- End to end through the published port 7777 (python client, Protobuf frames by hand):
+  - register e2e... -> auth reply with session token (43 chars)
+  - login with the same password -> auth reply
+  - login with wrong password -> error 401 "invalid username or password"
+  - register same name again -> error 409 "username already taken"
+- Bugs found and fixed during v2: OpenSSL headers missing (D-020); Boost.Redis implementation not compiled in (src.hpp, see BoostRedisSource.cpp); Redis commands hanging when Redis is down (2-second timeout, D-022); test fixture I/O thread returning early (work guard).
+
 ## CI - 2026-10-13
 - Run 38331642058 on commit 4e5b671: success on both presets, all steps, including "Check formatting".
 ## Compose config - 2026-10-12

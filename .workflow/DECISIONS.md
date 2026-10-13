@@ -34,6 +34,24 @@
 - Decision: proto/CMakeLists.txt uses add_custom_command to run protoc. It does not use the protobuf_generate helper.
 - Reason: The helper's TARGET form needs CMake 3.23. This machine has CMake 3.22.1.
 - Rejected alternatives: Upgrading CMake (extra install, and the user did not ask for it).
+## D-020 (2026-10-13): OpenSSL added as an explicit dependency
+- Decision: vcpkg.json lists openssl; CMake finds OpenSSL and links it into matchforge_store.
+- Reason: Boost.Redis includes Asio's SSL headers even without TLS. The boost-redis port does not install OpenSSL, so the build failed with "openssl/conf.h: No such file".
+- Not used: TLS. Connections to Redis and clients are plain for now (see BACKLOG.md).
+## D-021 (2026-10-13): Password and session design (Milestone 2)
+- Hashing: Argon2id with libsodium's interactive limits (about 64 MB and 50 to 100 ms per hash). Hashing runs on 4 worker threads, never on network threads.
+- Login timing: a dummy hash is checked when the account does not exist, so response time does not reveal which usernames exist.
+- Errors: wrong password and unknown user give the same 401 message.
+- Usernames: stored lowercase, so "Alice" and "alice" are one account.
+- Sessions: 256-bit random token (URL-safe base64, 43 characters), kept in Redis for 24 hours.
+- Rejected alternatives: bcrypt (less memory-hard), scrypt (libsodium Argon2id is the choice in CLAUDE.md), plain sessions in memory (lost on restart).
+## D-022 (2026-10-13): Redis calls are blocking calls made from worker threads
+- Decision: RedisAccountStore runs Boost.Redis on its own I/O thread. Callers (auth workers) wait for each command to finish.
+- Reason: Boost.Redis objects are not thread-safe, and CLAUDE.md forbids blocking network threads. Blocking a worker thread is acceptable.
+- Known limit: one connection serves all workers. Under load, use a connection pool (backlog).
+## D-023 (2026-10-13): Project version 0.2.0
+- Decision: project() VERSION and vcpkg version-string are 0.2.0.
+- Reason: Milestone 2 adds accounts.
 ## D-019 (2026-10-13): Runtime image is ubuntu:24.04 again; supersedes D-010
 - Decision: the runtime stage uses ubuntu:24.04, the same release as the build stage.
 - Reason: from v1 the server is built with Ubuntu 24.04's C library and C++ runtime (GLIBC_2.38, GLIBCXX_3.4.32). debian:bookworm-slim does not have them. With bookworm, the container crashed on start: "version GLIBCXX_3.4.32 not found". The earlier bookworm test passed only because the Milestone 0 binary used fewer symbols. The risk noted in D-010 happened.
