@@ -1,10 +1,12 @@
 # State
 Milestone: v0 - project setup
 Mode: full
-Phase: 4 of 4 - CI and containers (phases 1-3 done)
-Task: close milestone v0 (needs user OK on D-010 and D-011 first)
-Status: paused
-Next action: user confirms D-010 (ubuntu:24.04 runtime image) and D-011 (server container exits 0 after logging; AC-5 read this way). Then close milestone v0: archive files to milestones/v0/ and add a line to MILESTONES.md.
+Milestone: none active. v0 is closed (2026-10-13, pass). See MILESTONES.md.
+Mode: full
+Phase: closed
+Task: none
+Status: closed
+Next action: user chooses the next milestone (v1). Known gaps and backlog are in MILESTONES.md and BACKLOG.md. Before v1, decide whether to open a PR for milestone-0-setup.
 
 ## Log
 - 2026-10-12 21:16 EDT: started a 50-minute improvement session (stop at 22:06 EDT). Report: .workflow/SESSION-REPORT-2026-10-12.md

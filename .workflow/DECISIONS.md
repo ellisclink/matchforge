@@ -34,6 +34,15 @@
 - Decision: proto/CMakeLists.txt uses add_custom_command to run protoc. It does not use the protobuf_generate helper.
 - Reason: The helper's TARGET form needs CMake 3.23. This machine has CMake 3.22.1.
 - Rejected alternatives: Upgrading CMake (extra install, and the user did not ask for it).
+## D-011 (ACCEPTED 2026-10-13): AC-5 means both containers start
+- Decision: the server container starts, logs its version, and exits 0. Redis stays running and healthy. This is how AC-5 is read.
+- Reason: AC-3 requires the server to exit after logging. A long-running server belongs to a later milestone.
+- User decision: accepted by the user on 2026-10-13.
+## D-014 (ACCEPTED 2026-10-13): Second test for Protobuf round-trip
+- Decision: tests/proto/EnvelopeTest.cpp adds a test that sets a Heartbeat in an Envelope, serializes it, parses it back, and checks the payload and timestamp. AC-4 now means two tests.
+- Reason: Compiling the generated code does not prove it works at runtime. This test does.
+- User decision: accepted by the user on 2026-10-13.
+- Rejected alternatives: keeping one test (does not prove the Protobuf code runs).
 ## D-010 (REVISED 2026-10-13): Runtime image is debian:bookworm-slim, as in D-007
 - Decision: The build stage uses ubuntu:24.04. The runtime stage uses debian:bookworm-slim.
 - Reason: First I believed bookworm's older libstdc++ might not run the GCC 13 binary. I tested it: the binary built in the image runs on debian:bookworm-slim and exits 0. The server also runs as the non-root user matchforge there. Bookworm is smaller and matches the option accepted in D-007, so no deviation is needed.
