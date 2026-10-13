@@ -41,6 +41,19 @@ Shared settings, in the `base` preset:
 
 The `buildPresets` and `testPresets` sections let `cmake --build --preset debug` and `ctest --preset debug` pick the matching configuration without repeating the settings.
 
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| `VCPKG_ROOT` is empty, or `cmake --preset` says it cannot find the toolchain file | Your shell did not load `~/.bashrc`. Run `export VCPKG_ROOT=$HOME/vcpkg` in the same terminal, or open a new interactive terminal. |
+| libsodium fails with "requires the following programs from the system package manager: autoconf-archive" | Run `sudo apt install -y autoconf autoconf-archive automake libtool`, then build again. |
+| CMake says it cannot find Ninja | Install it with `sudo apt install -y ninja-build`. |
+| A build fails with `-Werror` on your own code | That is the strict warning rule working. Read the first line of the error. It names the warning, for example `unused-variable`. Fix the code instead of removing `-Werror`. |
+
+## Learn more
+
+- [docs/milestone-0-explained.md](docs/milestone-0-explained.md): how the build, vcpkg, Protobuf, Docker, and CI fit together, with interview questions.
+
 ## Run with Docker
 
 ```bash
