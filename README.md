@@ -116,6 +116,7 @@ joined, errors, and time to match (average, p50, p95, max). Run `--help` for eve
 
 ## Learn more
 
+- [docs/file-guide.md](docs/file-guide.md): every file explained: what it does, how it works, and why. Start here to understand the code.
 - [docs/architecture.md](docs/architecture.md): modules, threads and strands, message flow.
 - [docs/milestone-0-explained.md](docs/milestone-0-explained.md): the build, vcpkg, Protobuf, Docker, CI.
 - [docs/milestones-explained.md](docs/milestones-explained.md): milestones 1 to 9, with design
