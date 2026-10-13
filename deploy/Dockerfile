@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake ninja-build git curl zip unzip tar pkg-config \
-        autoconf automake libtool ca-certificates jq \
+        autoconf autoconf-archive automake libtool ca-certificates jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone vcpkg at the same baseline as vcpkg.json. The clone is done before the

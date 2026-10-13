@@ -14,7 +14,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install build tools
-        run: sudo apt-get update && sudo apt-get install -y ninja-build autoconf automake libtool jq
+        # autoconf-archive is needed to build libsodium from source inside vcpkg.
+        run: sudo apt-get update && sudo apt-get install -y ninja-build autoconf autoconf-archive automake libtool jq
 
       - name: Set vcpkg locations
         # Later steps read these from the environment. $GITHUB_ENV makes them
