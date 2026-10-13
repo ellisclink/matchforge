@@ -30,6 +30,22 @@
 - Decision: Empty layout folders get a .gitkeep file. Dockerfile uses pinned versions (ubuntu:24.04, debian:bookworm-slim), never latest.
 - Reason: Git does not track empty folders; "latest" tags make builds non-reproducible.
 - Rejected alternatives: Leaving folders empty; using latest tags.
+## D-009: Call protoc directly instead of protobuf_generate (2026-10-12)
+- Decision: proto/CMakeLists.txt uses add_custom_command to run protoc. It does not use the protobuf_generate helper.
+- Reason: The helper's TARGET form needs CMake 3.23. This machine has CMake 3.22.1.
+- Rejected alternatives: Upgrading CMake (extra install, and the user did not ask for it).
+## D-010 (DEVIATION, needs your OK): Docker runtime image is ubuntu:24.04, not debian:bookworm-slim
+- Decision: Both Dockerfile stages use ubuntu:24.04.
+- Reason: The binary is built with GCC 13 on Ubuntu 24.04. Debian bookworm ships GCC 12's libstdc++, which may not run the binary.
+- Rejected alternatives: debian:bookworm-slim (the D-007 example; may fail at runtime).
+## D-011 (INTERPRETATION, needs your OK): AC-5 means both containers start
+- Decision: compose sets restart: "no" on the server. The server prints its version and exits, so its container ends with exit 0. Redis stays running and healthy.
+- Reason: AC-3 requires the server to exit after logging. "Starts both containers" can only mean the server starts and exits cleanly. A long-running server arrives in a later milestone.
+## D-012: Strict warnings are an INTERFACE target (2026-10-12)
+- Decision: matchforge_warnings carries -Wall -Wextra -Wpedantic -Werror. Our targets link to it. Generated protobuf code is excluded.
+- Reason: One place to change the rules; generated code is outside our control.
+## D-013: Fix for libsodium build (2026-10-12)
+- Decision: autoconf-archive is added to the apt installs in CI and the Dockerfile. It was missing and libsodium's build fails without it.
 ## D-008: Spec and plan approved (2026-10-12)
 - Decision: SPEC.md (7 acceptance criteria) and PLAN.md (4 phases) approved as written. Phase 1 may begin.
 - Reason: User review, including the plain-English summary.

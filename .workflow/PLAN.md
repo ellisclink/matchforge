@@ -61,28 +61,28 @@ Runs: `cmake --build --preset debug` builds all five targets
 - Depends on: 2.1
 - Wave: 3
 - Verify: `cmake --build --preset debug --target matchforge_proto`
-- Status: todo
+- Status: done (see EVIDENCE.md; protoc run directly, D-009)
 ### Task 2.3: matchforge_core library and server/bots mains
 - Serves: AC-1, AC-3
 - Files: src/core/*, src/server/main.cpp, src/bots/main.cpp, CMakeLists.txt
 - Depends on: 2.1
 - Wave: 3
 - Verify: `./build/debug/matchforge_server` prints version, exit 0
-- Status: todo
+- Status: done
 ### Task 2.4: CMakeLists.txt and CMakePresets.json
 - Serves: AC-1, AC-2
 - Files: CMakeLists.txt, CMakePresets.json
 - Depends on: 2.2, 2.3
 - Wave: 4
 - Verify: `cmake --preset debug && cmake --preset release`
-- Status: todo
+- Status: done
 ### Task 2.5: matchforge_tests with one GoogleTest, registered with ctest
 - Serves: AC-4
 - Files: tests/CMakeLists.txt, tests/core/*.cpp
 - Depends on: 2.4
 - Wave: 5
 - Verify: `ctest --preset debug --output-on-failure`
-- Status: todo
+- Status: done
 ## Phase 3: verify locally
 Plain English: we build the project in both modes and run the test. If it all passes, the foundation is proven to work on your machine.
 Runs: debug and release builds and tests pass in WSL
