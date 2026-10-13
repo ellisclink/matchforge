@@ -1,0 +1,48 @@
+# Builds and tests matchforge on every push and pull request.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build autoconf automake libtool jq
+
+      - name: Set vcpkg locations
+        # Later steps read these from the environment. $GITHUB_ENV makes them
+        # available to every step that follows.
+        run: |
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+          echo "VCPKG_BINARY_SOURCES=clear;files,$HOME/vcpkg-archives,readwrite" >> "$GITHUB_ENV"
+
+      - name: Clone vcpkg at the pinned baseline
+        # The baseline commit lives in vcpkg.json, so CI and local builds use the same libraries.
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout "$(jq -r '."builtin-baseline"' vcpkg.json)"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Restore built packages
+        # Rebuilding Boost from source takes a long time. Keyed on vcpkg.json,
+        # so the cache is reused until dependencies change.
+        uses: actions/cache@v4
+        with:
+          path: ~/vcpkg-archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Configure (debug preset)
+        run: cmake --preset debug
+
+      - name: Build
+        run: cmake --build --preset debug
+
+      - name: Test
+        run: ctest --preset debug
