@@ -6,20 +6,44 @@ package matchforge.v1;
 // means exactly one payload is set, so the receiver reads the envelope first
 // and then checks which payload arrived.
 message Envelope {
-  oneof payload {
-    Heartbeat heartbeat = 1;
-    ErrorResponse error = 2;
-  }
+    oneof payload {
+        Heartbeat heartbeat = 1;
+        ErrorResponse error = 2;
+        RegisterRequest register = 3;
+        LoginRequest login = 4;
+        AuthResponse auth = 5;
+    }
 }
 
 // Either side sends this to show the connection is still alive.
 message Heartbeat {
-  // Sender's clock in milliseconds since the Unix epoch.
-  uint64 sent_at_unix_ms = 1;
+    // Sender's clock in milliseconds since the Unix epoch.
+    uint64 sent_at_unix_ms = 1;
 }
 
 // The server sends this when it cannot handle a request.
 message ErrorResponse {
-  int32 code = 1;
-  string message = 2;
+    int32 code = 1;
+    string message = 2;
+}
+
+// Asks the server to create an account. The password is sent once, over this
+// connection, and the server stores only a hash of it. Never log this message.
+message RegisterRequest {
+    string username = 1;
+    string password = 2;
+}
+
+// Asks the server to check a username and password and start a session.
+// Never log this message.
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+// Sent back after a successful register or login.
+message AuthResponse {
+    // Proves who the client is on later requests. Keep it secret.
+    string session_token = 1;
+    string username = 2;
 }
