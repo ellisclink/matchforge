@@ -69,6 +69,21 @@ Goal of the session: use the time to improve Milestone 0 (project setup), with e
 - `2206a48` build: use debian:bookworm-slim runtime image, tested with the server binary
 - `bab9f49` docs: add Milestone 0 explanation with interview questions; expand README troubleshooting
 
+## Verified at the end of the session (21:25 EDT)
+
+- **CI run on `4e5b671` (latest commit):** success. Both `debug` and `release` legs passed every step, including the new "Check formatting" step.
+- **CI run on `bab9f49`:** success for both legs.
+- **Full no-cache Docker build** of the server image: exit 0.
+- **Compose stack recreated from the new image:** Redis healthy; server logs `matchforge server 0.1.0` and exits 0.
+- **Clean rebuild** of both presets from an empty `build/` folder: both pass 1 of 1 test.
+
+## Ideas for later (need your OK before I do them)
+
+- **Protobuf round-trip test:** add a second test that builds an `Envelope` with a `Heartbeat`, serializes it, and parses it back. It would prove the generated code works, not just compiles. This adds a test, so it needs your OK (Milestone 0 says one test).
+- **Pin clang-format locally:** the local clang-format is 14.0.0 from apt, and CI uses 14.0.6 from pip. They agree on this repo today, but pinning both to 14.0.6 removes the gap.
+- **D-011:** still needs your yes or no. Milestone v0 stays open until then.
+
 ## CI status
 
-See the final message of this session for the result of the matrix run on `bab9f49`.
+- Runs on `4e5b671` and `bab9f49`: success, both presets.
+- Runs cancelled by the concurrency setting on `b00b56a`, `2206a48`: expected. A newer push replaced them.
