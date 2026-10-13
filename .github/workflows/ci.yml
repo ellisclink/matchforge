@@ -5,9 +5,29 @@ on:
   push:
   pull_request:
 
+# Least privilege: this workflow only reads the repo. It cannot write to it,
+# so a compromised dependency in a build step cannot push code.
+permissions:
+  contents: read
+
+# When you push again to the same branch, cancel the older run that is still
+# going. This saves runner time and gives you the result for the newest code.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    # A cold vcpkg build of Boost can take a long time. This stops a hung job from running forever.
+    timeout-minutes: 90
+
+    strategy:
+      # Keep the other preset running if one fails, so you see both results.
+      fail-fast: false
+      matrix:
+        # debug: with sanitizers. release: the optimised build that ships in Docker.
+        preset: [debug, release]
 
     steps:
       - name: Check out the code
@@ -39,11 +59,11 @@ jobs:
           path: ~/vcpkg-archives
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
 
-      - name: Configure (debug preset)
-        run: cmake --preset debug
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
 
       - name: Build
-        run: cmake --build --preset debug
+        run: cmake --build --preset ${{ matrix.preset }}
 
       - name: Test
-        run: ctest --preset debug
+        run: ctest --preset ${{ matrix.preset }}

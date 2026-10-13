@@ -1,0 +1,15 @@
+# Dependabot: GitHub opens a pull request each week when a tool we use has a
+# new version. You review and merge them, so our pinned versions stay current.
+version: 2
+updates:
+  # The actions used in .github/workflows (actions/checkout, actions/cache).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The base images in deploy/Dockerfile and deploy/docker-compose.yml.
+  - package-ecosystem: docker
+    directory: /deploy
+    schedule:
+      interval: weekly
