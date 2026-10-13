@@ -34,6 +34,26 @@
 - Decision: proto/CMakeLists.txt uses add_custom_command to run protoc. It does not use the protobuf_generate helper.
 - Reason: The helper's TARGET form needs CMake 3.23. This machine has CMake 3.22.1.
 - Rejected alternatives: Upgrading CMake (extra install, and the user did not ask for it).
+## D-019 (2026-10-13): Runtime image is ubuntu:24.04 again; supersedes D-010
+- Decision: the runtime stage uses ubuntu:24.04, the same release as the build stage.
+- Reason: from v1 the server is built with Ubuntu 24.04's C library and C++ runtime (GLIBC_2.38, GLIBCXX_3.4.32). debian:bookworm-slim does not have them. With bookworm, the container crashed on start: "version GLIBCXX_3.4.32 not found". The earlier bookworm test passed only because the Milestone 0 binary used fewer symbols. The risk noted in D-010 happened.
+- Rejected alternatives: building the binary on bookworm (would need a Debian build stage); static linking (more work for little gain now).
+- Lesson: test the runtime image with the binary you ship, every time the code changes.
+## D-015 (2026-10-13): Remaining milestones built from the overall goal
+- Decision: v1 to v9 follow ROADMAP.md. The user asked for the rest of the features to be built from CLAUDE.md's overall goal, with no milestone prompts.
+- Reason: the user delegated this. The order is the one proposed earlier.
+- Rejected alternatives: waiting for milestone prompts (the user does not have them).
+## D-016 (2026-10-13): The server now runs until stopped; supersedes D-011's exit-after-log behavior
+- Decision: matchforge_server listens on a port (default 7777) and runs until SIGINT or SIGTERM. Compose uses restart: unless-stopped and publishes port 7777.
+- Reason: a server that exits cannot accept clients. D-011 was written for Milestone 0 only.
+- Rejected alternatives: keeping the exit-after-log behavior behind a flag (adds a mode with no use).
+## D-017 (2026-10-13): Frame size limit is 64 KiB
+- Decision: any frame whose length header is above 65536 bytes closes the connection without a reply.
+- Reason: a limit stops a client from making the server buffer unlimited memory. 64 KiB is far above any planned message.
+- Rejected alternatives: no limit (unsafe); a configurable limit now (config arrives in v8).
+## D-018 (2026-10-13): Error policy
+- Decision: a message that does not parse gets ErrorResponse code 400 and the connection then closes. A valid envelope with no payload or with an ErrorResponse gets ErrorResponse 400 and the connection stays open.
+- Reason: after a bad frame the byte stream is not trustworthy, so the connection closes. A well-formed but unsupported message is only a bad request, so the connection stays open.
 ## D-011 (ACCEPTED 2026-10-13): AC-5 means both containers start
 - Decision: the server container starts, logs its version, and exits 0. Redis stays running and healthy. This is how AC-5 is read.
 - Reason: AC-3 requires the server to exit after logging. A long-running server belongs to a later milestone.

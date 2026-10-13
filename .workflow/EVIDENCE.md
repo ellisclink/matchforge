@@ -47,6 +47,33 @@
 ## Sanitizer check - 2026-10-13
 - Command: g++ -std=c++20 -fsanitize=address,undefined on a deliberate out-of-bounds write
 - Result: pass. AddressSanitizer reported heap-buffer-overflow with the file and line.
+## AC-4 (second test, D-014) - 2026-10-13
+- Command: `cmake --build --preset debug && ctest --preset debug`, then the same with `release`
+- Result: pass on both presets. "100% tests passed, 0 tests failed out of 2" (VersionTest.ReportsTheVersionCMakeConfigured and EnvelopeTest.HeartbeatSurvivesSerializeAndParse).
+## AC-7 (after adding the test) - 2026-10-13
+- Command: `clang-format --dry-run --Werror` on every .cpp and .h file, using clang-format 14.0.6 in a python:3.12-slim container
+- Result: pass (FORMAT_EXIT=0)
+## AC-5 (accepted under D-011) - 2026-10-13
+- Command: `docker compose up --build` and `docker compose up -d --force-recreate` after a full `--no-cache` build
+- Result: pass. Build exit 0. Redis healthy. Server logs "[info] matchforge server 0.1.0" and exits 0.
+## v1 AC-1 and AC-2 - 2026-10-13
+- Command: `ctest --preset debug --output-on-failure` and `ctest --preset release`
+- Result: pass on both. 100% tests passed, 0 failed out of 12 (2 earlier + 7 framing + 3 server).
+## v1 AC-3 - 2026-10-13
+- Command: real server on port 7788, Python client sends Envelope{heartbeat{42}} as a framed message
+- Result: pass. Reply length 9, bytes 0a0708e5e2e7979334 (a heartbeat with a non-zero clock).
+## v1 AC-6 - 2026-10-13
+- Command: `timeout --preserve-status -s INT 3 matchforge_server 7791`
+- Result: pass. Log "received signal 2, shutting down" then "server stopped". Exit code 0.
+## v1 AC-7 - 2026-10-13
+- Command: `docker compose up --build -d`; then a heartbeat sent to 127.0.0.1:7777
+- Result: pass after D-019. Server container Up, port 7777 published, heartbeat reply received.
+- First attempt failed: the bookworm runtime lacked GLIBCXX_3.4.32 and GLIBC_2.38. Fixed by D-019.
+## v1 AC-8 - 2026-10-13
+- Command: clang-format 14.0.6 `--dry-run --Werror` on every .cpp and .h file
+- Result: pass (FORMAT_EXIT=0)
+## CI - 2026-10-13
+- Run 38331642058 on commit 4e5b671: success on both presets, all steps, including "Check formatting".
 ## Compose config - 2026-10-12
 - Command: `docker compose -f deploy/docker-compose.yml config -q`
 - Result: pass (exit 0).

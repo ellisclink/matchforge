@@ -2,7 +2,7 @@
 
 A multiplayer lobby and Elo matchmaking server in C++. Players log in, queue for a match mode in a region, and are grouped with players of similar skill.
 
-Status: Milestone 0 (project setup). The programs only print their version. Matchmaking and networking come in later milestones.
+Status: Milestone 1 (TCP framing and sessions). The server listens on port 7777 and answers heartbeats. Accounts, lobby, and matchmaking come in later milestones (see `.workflow/ROADMAP.md`).
 
 ## Build and test (WSL2 / Ubuntu)
 
@@ -60,4 +60,12 @@ The `buildPresets` and `testPresets` sections let `cmake --build --preset debug`
 docker compose -f deploy/docker-compose.yml up --build
 ```
 
-The server container prints its version and exits. Redis keeps running.
+The server listens on port 7777 on your computer. Redis runs in the background. Stop everything with `docker compose -f deploy/docker-compose.yml down`.
+
+Quick check that the server answers, from WSL with Python:
+
+```bash
+python3 -c "import socket,struct; s=socket.create_connection(('127.0.0.1',7777)); e=bytes([0x0a,0x02,0x08,0x2a]); s.sendall(struct.pack('>I',len(e))+e); n=struct.unpack('>I',s.recv(4))[0]; print('reply:', s.recv(n).hex())"
+```
+
+The reply is a heartbeat from the server, so you will see a hex string starting with `0a`.
