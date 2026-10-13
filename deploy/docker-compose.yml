@@ -20,5 +20,9 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-    # Milestone 0's server prints its version and exits, so do not restart it.
-    restart: "no"
+    # Publish the game port to your computer, so a client on the host can connect.
+    ports:
+      - "7777:7777"
+    # The server now runs until stopped (Milestone 1). Restart it after a crash, but not
+    # after an explicit `docker compose stop`.
+    restart: unless-stopped
