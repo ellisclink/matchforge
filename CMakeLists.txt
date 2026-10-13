@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.21)  # Refuse to run on CMake older than 3.21 (
 # one-line description, and the language. LANGUAGES CXX means "C++ only", so
 # CMake does not look for a C compiler.
 project(matchforge
-  VERSION 0.2.0
+  VERSION 0.9.0
   DESCRIPTION "Multiplayer lobby and Elo matchmaking server in C++"
   LANGUAGES CXX)
 
@@ -51,6 +51,7 @@ endif()
 find_package(spdlog CONFIG REQUIRED)     # logging, used by the server and bots
 find_package(GTest CONFIG REQUIRED)      # the test framework, used by tests/
 find_package(boost_asio CONFIG REQUIRED)  # sockets and the io_context event loop (provides Boost::asio)
+find_package(prometheus-cpp CONFIG REQUIRED) # metrics and the /metrics HTTP endpoint
 find_package(nlohmann_json CONFIG REQUIRED) # JSON parser for the config file
 find_package(boost_redis CONFIG REQUIRED) # Redis client (provides Boost::redis)
 find_package(unofficial-sodium CONFIG REQUIRED) # libsodium: Argon2id and secure random bytes
@@ -71,6 +72,7 @@ enable_testing()
 # dependencies between targets after reading every file.
 add_subdirectory(proto)        # matchforge_proto: generated Protobuf code
 add_subdirectory(src/core)     # matchforge_core: shared logic
+add_subdirectory(src/metrics)  # matchforge_metrics: Prometheus counters, gauges, histograms
 add_subdirectory(src/config)   # matchforge_config: JSON settings file loader
 add_subdirectory(src/store)    # matchforge_store: account and session storage (in memory, Redis)
 add_subdirectory(src/auth)     # matchforge_auth: password hashing, tokens, register and login

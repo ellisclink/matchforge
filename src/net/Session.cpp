@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "matchforge.pb.h"
+#include "metrics/Metrics.h"
 #include "net/Framing.h"
 
 namespace matchforge::net {
@@ -36,15 +37,28 @@ std::uint64_t unixMillisNow() {
 }  // namespace
 
 Session::Session(boost::asio::ip::tcp::socket socket, const SessionLimits& limits,
-                 auth::AuthService& auth, lobby::LobbyService& lobby)
+                 auth::AuthService& auth, lobby::LobbyService& lobby, metrics::Metrics* metrics)
     : m_socket(std::move(socket)),
       m_auth(auth),
       m_lobby(lobby),
+      m_metrics(metrics),
       m_strand(boost::asio::make_strand(m_socket.get_executor())),
       m_decoder(limits.maxFrameBytes),
       m_idleTimeout(limits.idleTimeout),
       m_limiter(limits.messagesPerSecond, limits.messageBurst),
-      m_idleTimer(m_strand) {}  // The timer's handler runs on the session strand.
+      m_idleTimer(m_strand) {
+    if (m_metrics != nullptr) {
+        m_metrics->connectionOpened();
+    }
+}
+
+Session::~Session() {
+    // The destructor runs once the last handler holding the session has finished, which
+    // is exactly when the connection is fully gone.
+    if (m_metrics != nullptr) {
+        m_metrics->connectionClosed();
+    }
+}
 
 void Session::start() {
     // Post to the strand so the first read also runs inside the session's
@@ -70,6 +84,9 @@ void Session::armIdleTimer() {
 }
 
 bool Session::admitMessage() {
+    if (m_metrics != nullptr) {
+        m_metrics->messageReceived();
+    }
     if (m_limiter.allow(std::chrono::steady_clock::now())) {
         m_rejectedInARow = 0;
         return true;
@@ -79,6 +96,9 @@ bool Session::admitMessage() {
         // client can see why.
         closeAfterFlush();
         return false;
+    }
+    if (m_metrics != nullptr) {
+        m_metrics->messageRateLimited();
     }
     sendError(kTooManyRequests, "too many requests, slow down");
     return false;

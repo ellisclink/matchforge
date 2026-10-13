@@ -27,6 +27,10 @@
 #include "lobby/LobbyClient.h"
 #include "store/AccountStore.h"
 
+namespace matchforge::metrics {
+class Metrics;  // Defined in metrics/Metrics.h; only a pointer is used here.
+}
+
 namespace matchforge::lobby {
 
 struct LobbySettings {
@@ -61,7 +65,8 @@ public:
     // The store and worker pool must outlive the service. The service must outlive the
     // io_context's run, because pending timer handlers refer to it.
     LobbyService(boost::asio::io_context& ioContext, store::AccountStore& store,
-                 boost::asio::thread_pool& workers, LobbySettings settings);
+                 boost::asio::thread_pool& workers, LobbySettings settings,
+                 metrics::Metrics* metrics = nullptr);
 
     // Starts the regular matchmaking pass. Throws nothing.
     void start();
@@ -110,6 +115,7 @@ private:
     boost::asio::thread_pool& m_workers;
     LobbySettings m_settings;
     core::Matchmaker m_matchmaker;
+    metrics::Metrics* m_metrics;  // May be null.
     bool m_running = false;
 
     // The connection each queued player is waiting on. weak_ptr: the lobby must not keep a

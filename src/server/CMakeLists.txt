@@ -13,6 +13,8 @@ target_link_libraries(matchforge_server
     matchforge_auth      # register and login
     matchforge_lobby     # the matchmaking queue
     matchforge_config    # the JSON settings file
+    matchforge_metrics   # Prometheus metrics
+    prometheus-cpp::pull # the HTTP endpoint Prometheus scrapes
     matchforge_store     # Redis account storage
     spdlog::spdlog       # logging (spdlog::info)
     Boost::asio          # io_context, thread_pool and signal handling

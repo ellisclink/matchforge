@@ -7,7 +7,9 @@
 // Environment:
 //   MATCHFORGE_REDIS_HOST, MATCHFORGE_REDIS_PORT  override the Redis address from the config
 //   MATCHFORGE_RESULT_SECRET                      the secret game servers send with results
-#include <spdlog/spdlog.h>  // Logging library. Provides spdlog::info and friends.
+#include <prometheus/exposer.h>
+#include <prometheus/registry.h>  // full type, so the registry converts to a Collectable
+#include <spdlog/spdlog.h>        // Logging library. Provides spdlog::info and friends.
 
 #include <algorithm>
 #include <boost/asio/io_context.hpp>
@@ -16,6 +18,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <memory>
 #include <optional>
 #include <string>
 #include <thread>
@@ -25,6 +28,7 @@
 #include "config/ServerConfig.h"
 #include "core/Version.h"
 #include "lobby/LobbyService.h"
+#include "metrics/Metrics.h"
 #include "net/Server.h"
 #include "store/RedisAccountStore.h"
 
@@ -103,7 +107,18 @@ int main(int argc, char* argv[]) {
     const std::string resultSecret = env("MATCHFORGE_RESULT_SECRET").value_or("");
 
     try {
-        // 2. Storage first, so it outlives everything that uses it.
+        // Metrics first: everything below records into it, so it must be destroyed last.
+        matchforge::metrics::Metrics metrics;
+        std::unique_ptr<prometheus::Exposer> exposer;
+        if (config.metricsPort != 0) {
+            // Serves http://<host>:<metricsPort>/metrics for Prometheus to scrape.
+            exposer = std::make_unique<prometheus::Exposer>("0.0.0.0:" +
+                                                            std::to_string(config.metricsPort));
+            exposer->RegisterCollectable(metrics.registry());
+            spdlog::info("metrics on port {} at /metrics", config.metricsPort);
+        }
+
+        // 2. Storage, so it outlives everything that uses it.
         matchforge::store::RedisAccountStore store(config.redisHost, config.redisPort);
         spdlog::info("accounts stored in redis at {}:{}", config.redisHost, config.redisPort);
 
@@ -113,7 +128,7 @@ int main(int argc, char* argv[]) {
         throttle.maxFailures = config.maxLoginFailures;
         throttle.window = config.loginLockout;
         throttle.lockout = config.loginLockout;
-        matchforge::auth::AuthService auth(store, workers, throttle);
+        matchforge::auth::AuthService auth(store, workers, throttle, &metrics);
 
         // 4. The event loop. It runs every network callback.
         boost::asio::io_context ioContext;
@@ -137,7 +152,7 @@ int main(int argc, char* argv[]) {
         if (resultSecret.empty()) {
             spdlog::warn("MATCHFORGE_RESULT_SECRET is not set: match results will be rejected");
         }
-        matchforge::lobby::LobbyService lobby(ioContext, store, workers, lobbySettings);
+        matchforge::lobby::LobbyService lobby(ioContext, store, workers, lobbySettings, &metrics);
         lobby.start();
 
         // 6. The listener, with the per-connection limits from the config.
@@ -146,7 +161,7 @@ int main(int argc, char* argv[]) {
         limits.idleTimeout = config.idleTimeout;
         limits.messagesPerSecond = config.messagesPerSecond;
         limits.messageBurst = config.messageBurst;
-        matchforge::net::Server server(ioContext, config.port, limits, auth, lobby);
+        matchforge::net::Server server(ioContext, config.port, limits, auth, lobby, &metrics);
         server.start();
         spdlog::info("listening on port {} ({} modes, {} regions)", server.localPort(),
                      config.modes.size(), config.regions.size());

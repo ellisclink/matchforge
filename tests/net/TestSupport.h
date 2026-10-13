@@ -27,6 +27,7 @@
 #include "auth/AuthService.h"
 #include "lobby/LobbyService.h"
 #include "matchforge.pb.h"
+#include "metrics/Metrics.h"
 #include "net/Framing.h"
 #include "net/Server.h"
 #include "store/InMemoryAccountStore.h"
@@ -87,9 +88,9 @@ class TestServer {
 public:
     explicit TestServer(net::SessionLimits limits = defaultTestLimits(),
                         core::LoginThrottleSettings throttle = {})
-        : m_auth(m_store, m_workers, throttle),
-          m_lobby(m_ioContext, m_store, m_workers, testLobbySettings()),
-          m_server(m_ioContext, /*port=*/0, limits, m_auth, m_lobby),
+        : m_auth(m_store, m_workers, throttle, &m_metrics),
+          m_lobby(m_ioContext, m_store, m_workers, testLobbySettings(), &m_metrics),
+          m_server(m_ioContext, /*port=*/0, limits, m_auth, m_lobby, &m_metrics),
           m_runner(m_ioContext) {
         m_lobby.start();
         m_server.start();
@@ -103,8 +104,10 @@ public:
     // The port the server picked (it binds to port 0, so any free port works).
     std::uint16_t port() const { return m_server.localPort(); }
     store::InMemoryAccountStore& store() { return m_store; }
+    metrics::Metrics& metrics() { return m_metrics; }
 
 private:
+    metrics::Metrics m_metrics;  // First, so it outlives everything that records into it.
     store::InMemoryAccountStore m_store;
     boost::asio::thread_pool m_workers{2};
     auth::AuthService m_auth;

@@ -21,6 +21,7 @@ add_executable(matchforge_tests
   net/FramingTest.cpp               # frame encoder and decoder (no sockets)
   net/ServerTest.cpp                # integration: a real server on loopback and a client socket
   net/SessionLimitsTest.cpp         # idle timeout and rate limiting
+  metrics/MetricsTest.cpp           # metric values, unit and over TCP
   lobby/LobbyTest.cpp               # queue, matches, results and concurrency, over TCP
   bots/BotOptionsTest.cpp           # bot command-line parsing
   bots/BotReportTest.cpp            # average and percentiles
@@ -45,6 +46,7 @@ target_link_libraries(matchforge_tests
     matchforge_lobby
     matchforge_botlib
     matchforge_config
+    matchforge_metrics
     Boost::asio
     Threads::Threads
     GTest::gtest_main

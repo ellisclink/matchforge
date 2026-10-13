@@ -11,6 +11,10 @@
 #include "core/LoginThrottle.h"
 #include "store/AccountStore.h"
 
+namespace matchforge::metrics {
+class Metrics;  // Defined in metrics/Metrics.h; only a pointer is used here.
+}
+
 namespace matchforge::auth {
 
 // The outcome of a register or login attempt.
@@ -33,7 +37,7 @@ public:
     // service.
     // throttle: how many wrong passwords lock a username, and for how long.
     AuthService(store::AccountStore& store, boost::asio::thread_pool& workers,
-                core::LoginThrottleSettings throttle = {});
+                core::LoginThrottleSettings throttle = {}, metrics::Metrics* metrics = nullptr);
 
     // Starts an account registration and returns at once. The callback is called later.
     void registerAccount(std::string username, std::string password, AuthCallback callback);
@@ -47,6 +51,7 @@ private:
     // Worker threads handle logins in parallel, so the throttle is shared and guarded.
     std::mutex m_throttleMutex;
     core::LoginThrottle m_throttle;
+    metrics::Metrics* m_metrics;  // May be null.
 };
 
 }  // namespace matchforge::auth

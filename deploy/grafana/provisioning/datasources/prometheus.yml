@@ -1,0 +1,11 @@
+# Grafana reads this at startup and adds Prometheus as a data source, so the dashboard
+# works without any clicking. The fixed uid lets the dashboard JSON refer to it.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy             # Grafana's server talks to Prometheus, not your browser
+    url: http://prometheus:9090
+    isDefault: true

@@ -13,6 +13,7 @@
 
 #include "auth/PasswordHasher.h"
 #include "matchforge.pb.h"
+#include "metrics/Metrics.h"
 
 namespace matchforge::lobby {
 
@@ -82,13 +83,15 @@ double averageRating(const std::vector<core::QueuedPlayer>& team) {
 }  // namespace
 
 LobbyService::LobbyService(boost::asio::io_context& ioContext, store::AccountStore& store,
-                           boost::asio::thread_pool& workers, LobbySettings settings)
+                           boost::asio::thread_pool& workers, LobbySettings settings,
+                           metrics::Metrics* metrics)
     : m_strand(boost::asio::make_strand(ioContext)),
       m_timer(m_strand),  // The timer's handlers run on the strand, like everything else here.
       m_store(store),
       m_workers(workers),
       m_settings(std::move(settings)),
-      m_matchmaker(m_settings.modes, m_settings.regions, m_settings.matchSettings) {}
+      m_matchmaker(m_settings.modes, m_settings.regions, m_settings.matchSettings),
+      m_metrics(metrics) {}
 
 void LobbyService::start() {
     boost::asio::post(m_strand, [this] {
@@ -145,8 +148,20 @@ void LobbyService::tick() {
     for (core::Match& match : m_matchmaker.findMatches(now)) {
         const std::string matchId = auth::newSessionToken().substr(0, kMatchIdLength);
         announce(matchId, match);
+        if (m_metrics != nullptr) {
+            m_metrics->matchCreated(match.mode);
+            for (const auto* team : {&match.teamA, &match.teamB}) {
+                for (const core::QueuedPlayer& player : *team) {
+                    const std::chrono::duration<double> waited = now - player.joinedAt;
+                    m_metrics->queueWait(waited.count());
+                }
+            }
+        }
         m_matches.emplace(matchId, MatchRecord{std::move(match), now});
         ++m_matchesCreated;
+    }
+    if (m_metrics != nullptr) {
+        m_metrics->playersQueued(static_cast<double>(m_matchmaker.queuedCount()));
     }
 }
 
@@ -290,6 +305,9 @@ void LobbyService::reportResult(std::string matchId, int winningTeam, std::strin
         core::Match match = std::move(it->second.match);
         m_matches.erase(it);
         ++m_resultsApplied;
+        if (m_metrics != nullptr) {
+            m_metrics->resultApplied();
+        }
 
         // Team games use team averages: every player on a team gets the same change.
         const double scoreA =

@@ -15,3 +15,18 @@ No milestone prompts exist for v1 to v9. The user asked for the remaining featur
 | v9 | Prometheus metrics, Grafana dashboard, monitoring in Compose | Prometheus scrapes the server; Grafana shows players online and matches made |
 
 Rules that apply to every milestone (from CLAUDE.md): `src/core` has no networking or Redis; never block an I/O thread; never log passwords or tokens; validate every message; GoogleTest for every new module; one Conventional Commit per task.
+
+## Status (2026-10-13)
+
+| Milestone | Branch | Status |
+|---|---|---|
+| v0 setup | milestone-0-setup | done (PR #1) |
+| v1 framing and sessions | milestone-1-networking | done |
+| v2 accounts and login | milestone-2-accounts | done |
+| v3 matchmaking core | milestone-3-matchmaking | done |
+| v4-v6 lobby, concurrency, ratings | milestone-4-lobby | done |
+| v7 bots | milestone-7-bots | done |
+| v8 config and limits | milestone-8-config | done |
+| v9 metrics and dashboards | milestone-9-monitoring | done |
+
+Each branch is built on the one before it, so milestone-9-monitoring contains everything.

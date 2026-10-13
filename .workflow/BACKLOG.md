@@ -5,3 +5,9 @@
 - 2026-10-13: Add clang-tidy static analysis. Out of scope: it needs a version choice and will report many findings to triage.
 - 2026-10-13: Add a server-side check that Redis is reachable. Out of scope: Redis is not used until the accounts milestone.
 - 2026-10-13: Fix the earlier commit that also contains the README update (the CMake commit f5c7e43). Out of scope: history is already pushed, and a rewrite needs your OK.
+- 2026-10-13: TLS for client connections (and Redis). Highest priority before any real deployment: passwords currently cross the network in plain text.
+- 2026-10-13: Per-IP rate limits and connection caps. Current limits are per connection and per username.
+- 2026-10-13: Redis connection pool. One connection serves all workers.
+- 2026-10-13: Tell a reconnecting player about a match found while they were away.
+- 2026-10-13: Horizontal scaling: shared queue or one matchmaker per region.
+- 2026-10-13: Global match assignment (minimise total spread) as an alternative matcher.

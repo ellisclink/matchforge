@@ -14,6 +14,7 @@
 
 #include "auth/PasswordHasher.h"
 #include "core/Validation.h"
+#include "metrics/Metrics.h"
 
 namespace matchforge::auth {
 
@@ -129,8 +130,8 @@ AuthResult doLogin(store::AccountStore& store, const std::string& rawUsername,
 }  // namespace
 
 AuthService::AuthService(store::AccountStore& store, boost::asio::thread_pool& workers,
-                         core::LoginThrottleSettings throttle)
-    : m_store(store), m_workers(workers), m_throttle(throttle) {}
+                         core::LoginThrottleSettings throttle, metrics::Metrics* metrics)
+    : m_store(store), m_workers(workers), m_throttle(throttle), m_metrics(metrics) {}
 
 void AuthService::registerAccount(std::string username, std::string password,
                                   AuthCallback callback) {
@@ -138,7 +139,11 @@ void AuthService::registerAccount(std::string username, std::string password,
     boost::asio::post(m_workers,
                       [this, username = std::move(username), password = std::move(password),
                        callback = std::move(callback)]() mutable {
-                          callback(doRegister(m_store, username, password));
+                          AuthResult result = doRegister(m_store, username, password);
+                          if (m_metrics != nullptr) {
+                              m_metrics->registration(result.ok ? "success" : "failure");
+                          }
+                          callback(std::move(result));
                       });
 }
 
@@ -154,12 +159,18 @@ void AuthService::login(std::string username, std::string password, AuthCallback
             if (m_throttle.isLocked(key, now)) {
                 // Refuse without checking the password, so a locked name costs no hashing time
                 // and gives an attacker no information.
+                if (m_metrics != nullptr) {
+                    m_metrics->loginAttempt("locked");
+                }
                 callback(failure(kTooManyRequests, "too many failed logins, try again later"));
                 return;
             }
         }
 
         AuthResult result = doLogin(m_store, username, password);
+        if (m_metrics != nullptr) {
+            m_metrics->loginAttempt(result.ok ? "success" : "failure");
+        }
 
         {
             std::lock_guard lock(m_throttleMutex);

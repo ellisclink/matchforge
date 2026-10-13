@@ -89,3 +89,17 @@
 ## Compose config - 2026-10-12
 - Command: `docker compose -f deploy/docker-compose.yml config -q`
 - Result: pass (exit 0).
+
+## v3 matchmaking core - 2026-10-13
+- ctest -R "Elo|Matchmaker" (debug): 21 of 21 passed (7 Elo, 14 Matchmaker). Values checked by hand: upset 1400 vs 1600 gives +24; snake draft 1300/1250/1240/1210 gives 2510 vs 2490.
+## v4-v6 lobby, concurrency, ratings - 2026-10-13
+- Debug (sanitizers) and release: 76 of 76 passed, including 16 concurrent clients each matched exactly once, result reporting (+16/-16), wrong secret 403, duplicate report 404, draw unchanged, disconnected player not matched.
+## v7 bots - 2026-10-13
+- Debug: 86 of 86 passed. Docker: 20 bots x 3 rounds: 60 matches joined, 30 results, 0 errors, p50 250 ms, p95 414 ms.
+## v8 config and limits - 2026-10-13
+- Debug: 109 of 109 passed (config parsing and validation, shipped config file, token bucket, login lockout, idle timeout, 429 and flood disconnect over TCP).
+- Startup checks: unknown key, missing file and unknown flag each exit 2 with the setting named.
+- Docker: container log "loaded config /etc/matchforge/server.json"; 40 bots x 3 rounds: 120 matches, 60 results, 0 errors.
+## v9 metrics and dashboards - 2026-10-13
+- Debug: 112 of 112 passed (metric values unit-tested and recorded by a real server).
+- Docker: 60 bots x 3 rounds: 180 matches joined, 90 results, 0 errors. Prometheus target "up"; queries: matches_created 90, results_applied 90, registrations 60, queue_wait count 180, players_queued 0. Grafana health ok; dashboard "matchforge" with 8 panels served.

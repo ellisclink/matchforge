@@ -26,4 +26,5 @@ target_link_libraries(matchforge_net
     matchforge_lobby     # the matchmaking queue
     Threads::Threads     # pthreads, needed by Asio on Linux
   PRIVATE
+    matchforge_metrics   # optional metrics recording
     matchforge_warnings) # our strict warning flags

@@ -20,6 +20,10 @@
 #include "lobby/LobbyService.h"
 #include "net/Framing.h"
 
+namespace matchforge::metrics {
+class Metrics;  // Defined in metrics/Metrics.h; only a pointer is used here.
+}
+
 namespace matchforge::net {
 
 // Per-connection limits that protect the server from broken or abusive clients.
@@ -39,8 +43,11 @@ class Session : public std::enable_shared_from_this<Session>, public lobby::Lobb
 public:
     // Takes ownership of an accepted socket. The limits apply to this connection only.
     // The auth and lobby services must outlive every session.
+    // metrics may be null (no metrics recorded).
     Session(boost::asio::ip::tcp::socket socket, const SessionLimits& limits,
-            auth::AuthService& auth, lobby::LobbyService& lobby);
+            auth::AuthService& auth, lobby::LobbyService& lobby,
+            metrics::Metrics* metrics = nullptr);
+    ~Session() override;
 
     // Starts reading from the client. Call exactly once, right after creating the session.
     void start();
@@ -66,8 +73,9 @@ private:
     void close();                     // Closes the socket now.
 
     boost::asio::ip::tcp::socket m_socket;
-    auth::AuthService& m_auth;     // Handles register and login. Shared by all sessions.
-    lobby::LobbyService& m_lobby;  // The matchmaking queue. Shared by all sessions.
+    auth::AuthService& m_auth;  // Handles register and login. Shared by all sessions.
+    lobby::LobbyService& m_lobby;
+    metrics::Metrics* m_metrics;  // May be null.  // The matchmaking queue. Shared by all sessions.
     Strand m_strand;
     FrameDecoder m_decoder;
     std::chrono::seconds m_idleTimeout;

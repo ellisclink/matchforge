@@ -13,6 +13,7 @@ target_link_libraries(matchforge_lobby
     matchforge_store     # ratings
     Boost::asio          # strand, timer, thread_pool
   PRIVATE
+    matchforge_metrics   # optional metrics recording
     matchforge_proto     # the messages sent to players
     matchforge_auth      # newSessionToken() for random match ids
     spdlog::spdlog

@@ -97,3 +97,37 @@
 ## D-008: Spec and plan approved (2026-10-12)
 - Decision: SPEC.md (7 acceptance criteria) and PLAN.md (4 phases) approved as written. Phase 1 may begin.
 - Reason: User review, including the plain-English summary.
+
+## D-024 (2026-10-13): Matching algorithm
+- Decision: sort each (mode, region) bucket by rating; accept a run of 2*teamSize consecutive players when its spread fits the widest waiting window in the run (base 100, +10 per second, max 600); split teams with a snake draft.
+- Reason: simple, O(n log n), deterministic, and a long-waiting player is always eventually matched.
+- Rejected alternatives: global assignment minimising total spread (more complex, harder to explain); narrowest window in the group (newcomers would block long waiters).
+## D-025 (2026-10-13): Lobby on one strand with a 250 ms matching tick
+- Decision: LobbyService owns the Matchmaker on a single strand; sessions post requests; a timer runs findMatches every tick (configurable).
+- Reason: CLAUDE.md concurrency rule; no locks; batching gives the matcher more choice and bounds CPU.
+- Rejected alternatives: mutex around the matchmaker; matching on every join.
+## D-026 (2026-10-13): Results come from game servers with a shared secret
+- Decision: ReportMatchResult must carry MATCHFORGE_RESULT_SECRET (env only), compared in constant time; each match can be reported once, within 2 hours.
+- Reason: players cannot be trusted to report their own wins.
+- Rejected alternatives: player votes (collusion), per-match signed tokens (more moving parts; possible later).
+## D-027 (2026-10-13): Rating updates
+- Decision: Elo with team-average ratings, K = 32; change computed from match-time ratings and applied with SETNX + INCRBY.
+- Reason: atomic relative updates never lose a result when two arrive for one player at once.
+- Rejected alternatives: read-modify-write SET (lost updates).
+## D-028 (2026-10-13): Bot simulator design
+- Decision: one blocking client thread per bot; report p50/p95; compose "load" profile.
+- Reason: simple and realistic enough for hundreds of bots; percentiles expose tail latency.
+## D-029 (2026-10-13): Configuration file
+- Decision: config/server.json via nlohmann-json; optional fields with defaults; strict types, ranges and unknown-key errors; secrets only from the environment.
+## D-030 (2026-10-13): Per-connection limits
+- Decision: token bucket 20 msg/s with burst 40 (429 when empty, disconnect after 50 refusals in a row, after flushing replies); idle timeout 60 s.
+## D-031 (2026-10-13): Login lockout per username
+- Decision: 5 wrong passwords in 5 minutes lock the name for 5 minutes; locked attempts get 429 without hashing.
+- Trade-off accepted: someone can lock a known username for 5 minutes. Per-IP limits are backlog.
+## D-032 (2026-10-13): Metrics and dashboards
+- Decision: prometheus-cpp pull endpoint on :9100; components take an optional Metrics*; Prometheus scrapes every 5 s; Grafana provisioned from repo files; both UIs bound to 127.0.0.1.
+- Rejected alternatives: push gateway (extra service), global metrics singleton (hidden state in tests).
+## D-033 (2026-10-13): Framing as its own library
+- Decision: matchforge_framing holds only Framing.cpp so clients (bots) do not link the server.
+## D-034 (2026-10-13): Version 0.9.0
+- Decision: project and vcpkg version 0.9.0 after milestone 9. 1.0.0 is reserved for after TLS and a review.

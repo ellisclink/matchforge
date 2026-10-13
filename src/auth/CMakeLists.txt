@@ -15,6 +15,7 @@ target_link_libraries(matchforge_auth
     matchforge_core      # Elo defaults in AuthResult, and the validation rules
     Boost::asio          # thread_pool for worker threads
   PRIVATE
+    matchforge_metrics   # optional metrics recording
     unofficial-sodium::sodium  # Argon2id and random bytes
     spdlog::spdlog       # logging of failures (never passwords)
     matchforge_warnings)
