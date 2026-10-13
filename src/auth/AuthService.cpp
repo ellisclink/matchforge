@@ -23,6 +23,7 @@ namespace {
 constexpr std::int32_t kBadRequest = 400;
 constexpr std::int32_t kInvalidCredentials = 401;
 constexpr std::int32_t kUsernameTaken = 409;
+constexpr std::int32_t kTooManyRequests = 429;
 constexpr std::int32_t kServiceUnavailable = 503;
 
 // How long a login stays valid. After this the client must log in again.
@@ -127,8 +128,9 @@ AuthResult doLogin(store::AccountStore& store, const std::string& rawUsername,
 
 }  // namespace
 
-AuthService::AuthService(store::AccountStore& store, boost::asio::thread_pool& workers)
-    : m_store(store), m_workers(workers) {}
+AuthService::AuthService(store::AccountStore& store, boost::asio::thread_pool& workers,
+                         core::LoginThrottleSettings throttle)
+    : m_store(store), m_workers(workers), m_throttle(throttle) {}
 
 void AuthService::registerAccount(std::string username, std::string password,
                                   AuthCallback callback) {
@@ -141,11 +143,34 @@ void AuthService::registerAccount(std::string username, std::string password,
 }
 
 void AuthService::login(std::string username, std::string password, AuthCallback callback) {
-    boost::asio::post(m_workers,
-                      [this, username = std::move(username), password = std::move(password),
-                       callback = std::move(callback)]() mutable {
-                          callback(doLogin(m_store, username, password));
-                      });
+    boost::asio::post(m_workers, [this, username = std::move(username),
+                                  password = std::move(password),
+                                  callback = std::move(callback)]() mutable {
+        // The throttle is keyed by the stored (lowercase) name, so "Alice" and "alice" share it.
+        const std::string key = toLowercase(username);
+        const auto now = core::LoginThrottle::Clock::now();
+        {
+            std::lock_guard lock(m_throttleMutex);
+            if (m_throttle.isLocked(key, now)) {
+                // Refuse without checking the password, so a locked name costs no hashing time
+                // and gives an attacker no information.
+                callback(failure(kTooManyRequests, "too many failed logins, try again later"));
+                return;
+            }
+        }
+
+        AuthResult result = doLogin(m_store, username, password);
+
+        {
+            std::lock_guard lock(m_throttleMutex);
+            if (result.ok) {
+                m_throttle.recordSuccess(key);
+            } else if (result.errorCode == kInvalidCredentials) {
+                m_throttle.recordFailure(key, now);  // Only wrong credentials count, not outages.
+            }
+        }
+        callback(std::move(result));
+    });
 }
 
 }  // namespace matchforge::auth

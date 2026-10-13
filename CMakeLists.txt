@@ -51,6 +51,7 @@ endif()
 find_package(spdlog CONFIG REQUIRED)     # logging, used by the server and bots
 find_package(GTest CONFIG REQUIRED)      # the test framework, used by tests/
 find_package(boost_asio CONFIG REQUIRED)  # sockets and the io_context event loop (provides Boost::asio)
+find_package(nlohmann_json CONFIG REQUIRED) # JSON parser for the config file
 find_package(boost_redis CONFIG REQUIRED) # Redis client (provides Boost::redis)
 find_package(unofficial-sodium CONFIG REQUIRED) # libsodium: Argon2id and secure random bytes
 
@@ -70,6 +71,7 @@ enable_testing()
 # dependencies between targets after reading every file.
 add_subdirectory(proto)        # matchforge_proto: generated Protobuf code
 add_subdirectory(src/core)     # matchforge_core: shared logic
+add_subdirectory(src/config)   # matchforge_config: JSON settings file loader
 add_subdirectory(src/store)    # matchforge_store: account and session storage (in memory, Redis)
 add_subdirectory(src/auth)     # matchforge_auth: password hashing, tokens, register and login
 add_subdirectory(src/lobby)    # matchforge_lobby: the matchmaking queue service and match results

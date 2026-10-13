@@ -10,6 +10,9 @@ add_executable(matchforge_tests
   core/ValidationTest.cpp           # username and password rules
   core/EloTest.cpp                  # Elo formulas against hand-checked values
   core/MatchmakerTest.cpp           # queue and matching rules
+  core/RateLimiterTest.cpp          # token bucket
+  core/LoginThrottleTest.cpp        # failed-login lockout
+  config/ServerConfigTest.cpp       # JSON settings: parsing and validation
   proto/EnvelopeTest.cpp            # Protobuf round-trip: the generated code works at runtime
   auth/PasswordHasherTest.cpp       # Argon2id hashing and session tokens
   auth/AuthServiceTest.cpp          # register and login rules, against the in-memory store
@@ -17,6 +20,7 @@ add_executable(matchforge_tests
   store/RedisAccountStoreTest.cpp   # real Redis; skipped unless MATCHFORGE_TEST_REDIS_PORT is set
   net/FramingTest.cpp               # frame encoder and decoder (no sockets)
   net/ServerTest.cpp                # integration: a real server on loopback and a client socket
+  net/SessionLimitsTest.cpp         # idle timeout and rate limiting
   lobby/LobbyTest.cpp               # queue, matches, results and concurrency, over TCP
   bots/BotOptionsTest.cpp           # bot command-line parsing
   bots/BotReportTest.cpp            # average and percentiles
@@ -40,6 +44,7 @@ target_link_libraries(matchforge_tests
     matchforge_store
     matchforge_lobby
     matchforge_botlib
+    matchforge_config
     Boost::asio
     Threads::Threads
     GTest::gtest_main
@@ -48,6 +53,9 @@ target_link_libraries(matchforge_tests
 # After the program is built, CMake runs it with --gtest_list_tests, finds every
 # TEST() name, and registers each one with ctest. So a single `ctest` run covers all tests.
 # Lets tests include shared helpers such as "net/TestSupport.h".
+# Lets tests find files in the repository, such as config/server.json.
+target_compile_definitions(matchforge_tests PRIVATE MATCHFORGE_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+
 target_include_directories(matchforge_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # DISCOVERY_TIMEOUT: the test binary is large with sanitizers on; give listing tests time.

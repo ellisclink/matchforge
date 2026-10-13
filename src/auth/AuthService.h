@@ -4,9 +4,11 @@
 #include <boost/asio/thread_pool.hpp>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 
 #include "core/Elo.h"
+#include "core/LoginThrottle.h"
 #include "store/AccountStore.h"
 
 namespace matchforge::auth {
@@ -29,7 +31,9 @@ class AuthService {
 public:
     // The store must outlive the service. Work runs on the pool, which must also outlive the
     // service.
-    AuthService(store::AccountStore& store, boost::asio::thread_pool& workers);
+    // throttle: how many wrong passwords lock a username, and for how long.
+    AuthService(store::AccountStore& store, boost::asio::thread_pool& workers,
+                core::LoginThrottleSettings throttle = {});
 
     // Starts an account registration and returns at once. The callback is called later.
     void registerAccount(std::string username, std::string password, AuthCallback callback);
@@ -40,6 +44,9 @@ public:
 private:
     store::AccountStore& m_store;
     boost::asio::thread_pool& m_workers;
+    // Worker threads handle logins in parallel, so the throttle is shared and guarded.
+    std::mutex m_throttleMutex;
+    core::LoginThrottle m_throttle;
 };
 
 }  // namespace matchforge::auth

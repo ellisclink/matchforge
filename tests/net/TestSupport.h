@@ -58,39 +58,71 @@ private:
     std::thread m_thread;
 };
 
-// A running server with accounts in memory. Members are declared in dependency order:
-// they are destroyed in reverse, so the I/O thread stops before anything it uses goes away.
-class ServerFixture : public ::testing::Test {
-protected:
-    static constexpr std::size_t kMaxFrameBytes = 1024;
-    static constexpr const char* kResultSecret = "test-result-secret";
+inline constexpr const char* kResultSecret = "test-result-secret";
 
-    static lobby::LobbySettings testLobbySettings() {
-        lobby::LobbySettings settings;
-        settings.modes = {{"duel", 1}, {"duo", 2}};
-        settings.regions = {"eu", "na"};
-        settings.tickInterval = std::chrono::milliseconds(20);  // fast matching keeps tests quick
-        settings.resultSecret = kResultSecret;
-        return settings;
-    }
+// Limits used by most tests: small frames, generous rates and timeouts so slow sanitizer
+// builds never trip them by accident.
+inline net::SessionLimits defaultTestLimits() {
+    net::SessionLimits limits;
+    limits.maxFrameBytes = 1024;
+    limits.idleTimeout = std::chrono::seconds(60);
+    limits.messagesPerSecond = 1000;
+    limits.messageBurst = 1000;
+    return limits;
+}
 
-    void SetUp() override {
+inline lobby::LobbySettings testLobbySettings() {
+    lobby::LobbySettings settings;
+    settings.modes = {{"duel", 1}, {"duo", 2}};
+    settings.regions = {"eu", "na"};
+    settings.tickInterval = std::chrono::milliseconds(20);  // fast matching keeps tests quick
+    settings.resultSecret = kResultSecret;
+    return settings;
+}
+
+// A complete running server (accounts in memory, lobby, listener on a free port) with the
+// given limits. Members are declared in dependency order: they are destroyed in reverse,
+// so the I/O thread stops before anything it uses goes away.
+class TestServer {
+public:
+    explicit TestServer(net::SessionLimits limits = defaultTestLimits(),
+                        core::LoginThrottleSettings throttle = {})
+        : m_auth(m_store, m_workers, throttle),
+          m_lobby(m_ioContext, m_store, m_workers, testLobbySettings()),
+          m_server(m_ioContext, /*port=*/0, limits, m_auth, m_lobby),
+          m_runner(m_ioContext) {
         m_lobby.start();
         m_server.start();
     }
 
-    void TearDown() override { m_lobby.stop(); }
+    ~TestServer() { m_lobby.stop(); }
+
+    TestServer(const TestServer&) = delete;
+    TestServer& operator=(const TestServer&) = delete;
 
     // The port the server picked (it binds to port 0, so any free port works).
     std::uint16_t port() const { return m_server.localPort(); }
+    store::InMemoryAccountStore& store() { return m_store; }
 
+private:
     store::InMemoryAccountStore m_store;
     boost::asio::thread_pool m_workers{2};
-    auth::AuthService m_auth{m_store, m_workers};
+    auth::AuthService m_auth;
     boost::asio::io_context m_ioContext;
-    lobby::LobbyService m_lobby{m_ioContext, m_store, m_workers, testLobbySettings()};
-    net::Server m_server{m_ioContext, /*port=*/0, kMaxFrameBytes, m_auth, m_lobby};
-    IoThread m_runner{m_ioContext};  // Declared last, so it is destroyed first.
+    lobby::LobbyService m_lobby;
+    net::Server m_server;
+    IoThread m_runner;  // Declared last, so it is destroyed first.
+};
+
+// GoogleTest fixture: a fresh TestServer with default limits for every test.
+class ServerFixture : public ::testing::Test {
+protected:
+    static constexpr const char* kResultSecret = test::kResultSecret;
+
+    std::uint16_t port() const { return m_testServer.port(); }
+
+    TestServer m_testServer;
+    store::InMemoryAccountStore& m_store = m_testServer.store();
 };
 
 // A blocking client, like a very small game client. It uses its own io_context, so many

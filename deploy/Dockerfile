@@ -47,4 +47,10 @@ COPY --from=build /src/build/release/src/server/matchforge_server /usr/local/bin
 COPY --from=build /src/build/release/src/bots/matchforge_bots /usr/local/bin/matchforge_bots
 
 USER matchforge
-ENTRYPOINT ["/usr/local/bin/matchforge_server"]
+# Default settings. Mount a different file over this path to change them without rebuilding.
+COPY config/server.json /etc/matchforge/server.json
+
+# Documentation only: the game port and the Prometheus metrics port.
+EXPOSE 7777 9100
+
+ENTRYPOINT ["/usr/local/bin/matchforge_server", "--config", "/etc/matchforge/server.json"]

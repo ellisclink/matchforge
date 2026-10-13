@@ -18,8 +18,13 @@ namespace matchforge::net {
 namespace {
 
 // Error codes sent to the client in ErrorResponse. They loosely follow HTTP.
-constexpr std::int32_t kBadRequest = 400;    // the request itself was wrong
-constexpr std::int32_t kUnauthorized = 401;  // the client must log in first
+constexpr std::int32_t kBadRequest = 400;       // the request itself was wrong
+constexpr std::int32_t kUnauthorized = 401;     // the client must log in first
+constexpr std::int32_t kTooManyRequests = 429;  // the client is sending too fast
+
+// A client that keeps flooding after being told to slow down is disconnected. One refusal
+// can be an accident; this many in a row is not.
+constexpr int kMaxRejectedInARow = 50;
 
 // The current time as milliseconds since the Unix epoch, for Heartbeat replies.
 std::uint64_t unixMillisNow() {
@@ -30,18 +35,53 @@ std::uint64_t unixMillisNow() {
 
 }  // namespace
 
-Session::Session(boost::asio::ip::tcp::socket socket, std::size_t maxFrameBytes,
+Session::Session(boost::asio::ip::tcp::socket socket, const SessionLimits& limits,
                  auth::AuthService& auth, lobby::LobbyService& lobby)
     : m_socket(std::move(socket)),
       m_auth(auth),
       m_lobby(lobby),
       m_strand(boost::asio::make_strand(m_socket.get_executor())),
-      m_decoder(maxFrameBytes) {}
+      m_decoder(limits.maxFrameBytes),
+      m_idleTimeout(limits.idleTimeout),
+      m_limiter(limits.messagesPerSecond, limits.messageBurst),
+      m_idleTimer(m_strand) {}  // The timer's handler runs on the session strand.
 
 void Session::start() {
     // Post to the strand so the first read also runs inside the session's
     // serialized context, the same place as every later handler.
-    boost::asio::post(m_strand, [self = shared_from_this()] { self->doRead(); });
+    boost::asio::post(m_strand, [self = shared_from_this()] {
+        self->armIdleTimer();
+        self->doRead();
+    });
+}
+
+void Session::armIdleTimer() {
+    // Setting a new expiry cancels the previous wait (its handler sees operation_aborted),
+    // so each received message pushes the deadline back.
+    m_idleTimer.expires_after(m_idleTimeout);
+    m_idleTimer.async_wait([self = shared_from_this()](boost::system::error_code ec) {
+        if (ec == boost::asio::error::operation_aborted || self->m_closed) {
+            return;  // Re-armed or already closed: nothing to do.
+        }
+        // A silent connection holds a socket and memory for nothing; a client that wants to
+        // stay connected without playing sends a Heartbeat now and then.
+        self->close();
+    });
+}
+
+bool Session::admitMessage() {
+    if (m_limiter.allow(std::chrono::steady_clock::now())) {
+        m_rejectedInARow = 0;
+        return true;
+    }
+    if (++m_rejectedInARow > kMaxRejectedInARow) {
+        // Hang up, but only after the refusals already queued have been written, so the
+        // client can see why.
+        closeAfterFlush();
+        return false;
+    }
+    sendError(kTooManyRequests, "too many requests, slow down");
+    return false;
 }
 
 void Session::deliver(std::string serializedEnvelope) {
@@ -66,9 +106,17 @@ void Session::doRead() {
                 }
 
                 self->m_decoder.append(std::string_view(self->m_readBuffer.data(), bytesRead));
+                self->armIdleTimer();  // The client is active, so restart the idle countdown.
 
                 // One read can contain several whole frames, so keep pulling until none are left.
                 while (auto payload = self->m_decoder.nextFrame()) {
+                    // Rate limit each message, not each read: one read can hold many messages.
+                    if (!self->admitMessage()) {
+                        if (self->m_closed || self->m_closeAfterWrite) {
+                            return;
+                        }
+                        continue;
+                    }
                     self->handleFrame(*payload);
                     if (self->m_closed || self->m_closeAfterWrite) {
                         return;
@@ -247,6 +295,7 @@ void Session::close() {
         return;  // Closing twice is harmless, but skip the work.
     }
     m_closed = true;
+    m_idleTimer.cancel();
 
     // A player who disconnects while queued must not be matched afterwards.
     if (m_username) {

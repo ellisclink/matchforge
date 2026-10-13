@@ -8,6 +8,7 @@
 
 #include "auth/AuthService.h"
 #include "lobby/LobbyService.h"
+#include "net/Session.h"
 
 namespace matchforge::net {
 
@@ -17,7 +18,7 @@ public:
     // fails here with an exception rather than later. Port 0 asks the OS for any free port;
     // localPort() then reports which one it picked (tests use this).
     // The auth and lobby services must outlive the server.
-    Server(boost::asio::io_context& ioContext, std::uint16_t port, std::size_t maxFrameBytes,
+    Server(boost::asio::io_context& ioContext, std::uint16_t port, const SessionLimits& limits,
            auth::AuthService& auth, lobby::LobbyService& lobby);
 
     // Starts accepting connections. Connections are handled on the io_context's threads.
@@ -33,7 +34,7 @@ private:
     void doAccept();  // Waits for one client, then starts a session and waits again.
 
     boost::asio::ip::tcp::acceptor m_acceptor;
-    std::size_t m_maxFrameBytes;
+    SessionLimits m_limits;  // Applied to every connection.
     auth::AuthService& m_auth;
     lobby::LobbyService& m_lobby;
 };

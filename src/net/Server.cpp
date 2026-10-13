@@ -20,11 +20,11 @@ boost::asio::ip::tcp::endpoint listenEndpoint(std::uint16_t port) {
 
 }  // namespace
 
-Server::Server(boost::asio::io_context& ioContext, std::uint16_t port, std::size_t maxFrameBytes,
+Server::Server(boost::asio::io_context& ioContext, std::uint16_t port, const SessionLimits& limits,
                auth::AuthService& auth, lobby::LobbyService& lobby)
     : m_acceptor(ioContext,
                  listenEndpoint(port)),  // Binds and listens now; throws if the port is taken.
-      m_maxFrameBytes(maxFrameBytes),
+      m_limits(limits),
       m_auth(auth),
       m_lobby(lobby) {}
 
@@ -44,19 +44,19 @@ std::uint16_t Server::localPort() const {
 void Server::doAccept() {
     // The handler captures `this`, so the Server must outlive the io_context run.
     // main() and the tests both keep it alive until the io_context has stopped.
-    m_acceptor.async_accept([this](boost::system::error_code ec,
-                                   boost::asio::ip::tcp::socket socket) {
-        if (!ec) {
-            // Each client gets its own Session, owned by shared_ptr until its work finishes.
-            std::make_shared<Session>(std::move(socket), m_maxFrameBytes, m_auth, m_lobby)->start();
-        }
+    m_acceptor.async_accept(
+        [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
+            if (!ec) {
+                // Each client gets its own Session, owned by shared_ptr until its work finishes.
+                std::make_shared<Session>(std::move(socket), m_limits, m_auth, m_lobby)->start();
+            }
 
-        // Keep accepting, unless stop() closed the acceptor. A failed accept (for example,
-        // a temporary resource error) should not end the server, so we keep going.
-        if (m_acceptor.is_open()) {
-            doAccept();
-        }
-    });
+            // Keep accepting, unless stop() closed the acceptor. A failed accept (for example,
+            // a temporary resource error) should not end the server, so we keep going.
+            if (m_acceptor.is_open()) {
+                doAccept();
+            }
+        });
 }
 
 }  // namespace matchforge::net

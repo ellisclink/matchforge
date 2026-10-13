@@ -130,3 +130,21 @@ TEST_F(AuthServiceTest, ErrorMessagesNeverEchoThePassword) {
     EXPECT_EQ(wrong.errorMessage.find(secret), std::string::npos);
     EXPECT_EQ(invalid.errorMessage.find(secret), std::string::npos);
 }
+
+TEST_F(AuthServiceTest, RepeatedWrongPasswordsLockTheUsername) {
+    ASSERT_TRUE(registerAccount("henry", "correct horse").ok);
+
+    // The default throttle allows 5 wrong passwords, then locks the name.
+    for (int i = 0; i < 5; ++i) {
+        EXPECT_EQ(login("henry", "wrong horse").errorCode, kInvalidCredentials);
+    }
+
+    // Now even the right password is refused, without being checked.
+    const AuthResult locked = login("henry", "correct horse");
+    EXPECT_FALSE(locked.ok);
+    EXPECT_EQ(locked.errorCode, 429);
+
+    // Other accounts are not affected.
+    ASSERT_TRUE(registerAccount("iris", "correct horse").ok);
+    EXPECT_TRUE(login("iris", "correct horse").ok);
+}
