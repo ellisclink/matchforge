@@ -20,10 +20,12 @@ boost::asio::ip::tcp::endpoint listenEndpoint(std::uint16_t port) {
 
 }  // namespace
 
-Server::Server(boost::asio::io_context& ioContext, std::uint16_t port, std::size_t maxFrameBytes)
+Server::Server(boost::asio::io_context& ioContext, std::uint16_t port, std::size_t maxFrameBytes,
+               auth::AuthService& auth)
     : m_acceptor(ioContext,
                  listenEndpoint(port)),  // Binds and listens now; throws if the port is taken.
-      m_maxFrameBytes(maxFrameBytes) {}
+      m_maxFrameBytes(maxFrameBytes),
+      m_auth(auth) {}
 
 void Server::start() { doAccept(); }
 
@@ -45,7 +47,7 @@ void Server::doAccept() {
         [this](boost::system::error_code ec, boost::asio::ip::tcp::socket socket) {
             if (!ec) {
                 // Each client gets its own Session, owned by shared_ptr until its work finishes.
-                std::make_shared<Session>(std::move(socket), m_maxFrameBytes)->start();
+                std::make_shared<Session>(std::move(socket), m_maxFrameBytes, m_auth)->start();
             }
 
             // Keep accepting, unless stop() closed the acceptor. A failed accept (for example,

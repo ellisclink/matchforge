@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.21)  # Refuse to run on CMake older than 3.21 (
 # one-line description, and the language. LANGUAGES CXX means "C++ only", so
 # CMake does not look for a C compiler.
 project(matchforge
-  VERSION 0.1.0
+  VERSION 0.2.0
   DESCRIPTION "Multiplayer lobby and Elo matchmaking server in C++"
   LANGUAGES CXX)
 
@@ -50,7 +50,13 @@ endif()
 # step with an error if one is missing.
 find_package(spdlog CONFIG REQUIRED)     # logging, used by the server and bots
 find_package(GTest CONFIG REQUIRED)      # the test framework, used by tests/
-find_package(boost_asio CONFIG REQUIRED) # sockets and the io_context event loop (provides Boost::asio)
+find_package(boost_asio CONFIG REQUIRED)  # sockets and the io_context event loop (provides Boost::asio)
+find_package(boost_redis CONFIG REQUIRED) # Redis client (provides Boost::redis)
+find_package(unofficial-sodium CONFIG REQUIRED) # libsodium: Argon2id and secure random bytes
+
+# OpenSSL: Boost.Redis includes Asio's SSL headers even when TLS is off, so the
+# headers must exist at build time. We do not use TLS yet.
+find_package(OpenSSL REQUIRED)
 
 # Threads finds the thread library (pthreads on Linux). Asio and our server need it.
 find_package(Threads REQUIRED)
@@ -64,6 +70,8 @@ enable_testing()
 # dependencies between targets after reading every file.
 add_subdirectory(proto)        # matchforge_proto: generated Protobuf code
 add_subdirectory(src/core)     # matchforge_core: shared logic
+add_subdirectory(src/store)    # matchforge_store: account and session storage (in memory, Redis)
+add_subdirectory(src/auth)     # matchforge_auth: password hashing, tokens, register and login
 add_subdirectory(src/net)      # matchforge_net: TCP framing, sessions and the listening server
 add_subdirectory(src/server)   # matchforge_server: the server program
 add_subdirectory(src/bots)     # matchforge_bots: the load-test program

@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 
+#include "auth/AuthService.h"
 #include "net/Framing.h"
 
 namespace matchforge::net {
@@ -20,8 +21,9 @@ namespace matchforge::net {
 class Session : public std::enable_shared_from_this<Session> {
 public:
     // Takes ownership of an accepted socket. maxFrameBytes is the largest message we accept from
-    // this client.
-    Session(boost::asio::ip::tcp::socket socket, std::size_t maxFrameBytes);
+    // this client. The auth service must outlive every session.
+    Session(boost::asio::ip::tcp::socket socket, std::size_t maxFrameBytes,
+            auth::AuthService& auth);
 
     // Starts reading from the client. Call exactly once, right after creating the session.
     void start();
@@ -31,8 +33,10 @@ private:
     // own strand, so its reads and writes never race, and no mutex is needed.
     using Strand = boost::asio::strand<boost::asio::any_io_executor>;
 
-    void doRead();                                             // Waits for the next chunk of bytes.
-    void handleFrame(const std::string& payload);              // Processes one complete message.
+    void doRead();                                 // Waits for the next chunk of bytes.
+    void handleFrame(const std::string& payload);  // Processes one complete message.
+    void handleAuthResult(
+        const auth::AuthResult& result);  // Sends the AuthResponse or ErrorResponse.
     void sendEnvelope(const std::string& serializedEnvelope);  // Frames and queues a reply.
     void enqueue(std::string frame);  // Adds a frame to the write queue and starts writing if idle.
     void doWrite();                   // Writes the frame at the front of the queue.
@@ -40,6 +44,7 @@ private:
     void close();                     // Closes the socket now.
 
     boost::asio::ip::tcp::socket m_socket;
+    auth::AuthService& m_auth;  // Handles register and login. Shared by all sessions.
     Strand m_strand;
     FrameDecoder m_decoder;
     std::array<char, 4096> m_readBuffer{};  // Scratch space for one read from the socket.

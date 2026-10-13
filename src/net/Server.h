@@ -6,6 +6,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "auth/AuthService.h"
+
 namespace matchforge::net {
 
 class Server {
@@ -13,7 +15,9 @@ public:
     // Opens and binds the listening socket right away, so a port that is already in use
     // fails here with an exception rather than later. Port 0 asks the OS for any free port;
     // localPort() then reports which one it picked (tests use this).
-    Server(boost::asio::io_context& ioContext, std::uint16_t port, std::size_t maxFrameBytes);
+    // The auth service must outlive the server.
+    Server(boost::asio::io_context& ioContext, std::uint16_t port, std::size_t maxFrameBytes,
+           auth::AuthService& auth);
 
     // Starts accepting connections. Connections are handled on the io_context's threads.
     void start();
@@ -29,6 +33,7 @@ private:
 
     boost::asio::ip::tcp::acceptor m_acceptor;
     std::size_t m_maxFrameBytes;
+    auth::AuthService& m_auth;
 };
 
 }  // namespace matchforge::net

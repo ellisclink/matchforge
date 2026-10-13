@@ -5,16 +5,20 @@
 #include <algorithm>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
+#include <boost/asio/thread_pool.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <memory>
 #include <string>
 #include <thread>
 #include <vector>
 
+#include "auth/AuthService.h"
 #include "core/Version.h"  // Gives us matchforge::core::version().
 #include "net/Server.h"    // The listening socket.
+#include "store/RedisAccountStore.h"
 
 namespace {
 
@@ -23,6 +27,10 @@ constexpr std::uint16_t kDefaultPort = 7777;
 
 // Largest message a client may send, in bytes. A bigger length header closes the connection.
 constexpr std::size_t kMaxFrameBytes = 64 * 1024;
+
+// Threads that hash passwords. Argon2id is CPU- and memory-heavy, so this is kept small:
+// each hash uses 64 MB, and this many run at once.
+constexpr unsigned int kAuthWorkerThreads = 4;
 
 // Reads the optional port argument: "matchforge_server 9000". Returns false if it is not a valid
 // port.
@@ -41,6 +49,13 @@ bool parsePort(int argc, char* argv[], std::uint16_t& port) {
     return true;
 }
 
+// Reads a setting from the environment, or returns the default when it is not set.
+// Docker Compose passes Redis's address this way, so the same binary runs anywhere.
+std::string envOr(const char* name, const std::string& fallback) {
+    const char* value = std::getenv(name);
+    return value != nullptr ? std::string(value) : fallback;
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -53,6 +68,16 @@ int main(int argc, char* argv[]) {
     }
 
     try {
+        // Storage first, so it outlives everything that uses it.
+        const std::string redisHost = envOr("MATCHFORGE_REDIS_HOST", "127.0.0.1");
+        const std::string redisPort = envOr("MATCHFORGE_REDIS_PORT", "6379");
+        matchforge::store::RedisAccountStore store(redisHost, redisPort);
+        spdlog::info("accounts stored in redis at {}:{}", redisHost, redisPort);
+
+        // Password hashing runs here, away from the network threads.
+        boost::asio::thread_pool authWorkers(kAuthWorkerThreads);
+        matchforge::auth::AuthService auth(store, authWorkers);
+
         // The io_context is the event loop: it runs every network callback.
         boost::asio::io_context ioContext;
 
@@ -64,22 +89,24 @@ int main(int argc, char* argv[]) {
             ioContext.stop();
         });
 
-        matchforge::net::Server server(ioContext, port, kMaxFrameBytes);
+        matchforge::net::Server server(ioContext, port, kMaxFrameBytes, auth);
         server.start();
         spdlog::info("listening on port {}", server.localPort());
 
         // Run the event loop on several threads, so one slow client does not block others.
         // Each session has its own strand, so its handlers stay in order even with many threads.
         const unsigned int threadCount = std::max(2u, std::thread::hardware_concurrency());
-        std::vector<std::thread> workers;
-        workers.reserve(threadCount);
+        std::vector<std::thread> ioThreads;
+        ioThreads.reserve(threadCount);
         for (unsigned int i = 0; i < threadCount; ++i) {
-            workers.emplace_back([&ioContext] { ioContext.run(); });
+            ioThreads.emplace_back([&ioContext] { ioContext.run(); });
         }
-        for (auto& worker : workers) {
-            worker.join();  // Returns once ioContext.stop() has been called and all work is done.
+        for (auto& thread : ioThreads) {
+            thread.join();  // Returns once ioContext.stop() has been called and all work is done.
         }
 
+        // Let any password hash that is still running finish before the store is destroyed.
+        authWorkers.join();
         spdlog::info("server stopped");
     } catch (const std::exception& error) {
         // Most often: the port is already in use. Log it and exit with an error code.

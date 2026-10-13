@@ -32,8 +32,10 @@ std::uint64_t unixMillisNow() {
 
 }  // namespace
 
-Session::Session(boost::asio::ip::tcp::socket socket, std::size_t maxFrameBytes)
+Session::Session(boost::asio::ip::tcp::socket socket, std::size_t maxFrameBytes,
+                 auth::AuthService& auth)
     : m_socket(std::move(socket)),
+      m_auth(auth),
       m_strand(boost::asio::make_strand(m_socket.get_executor())),
       m_decoder(maxFrameBytes) {}
 
@@ -102,8 +104,32 @@ void Session::handleFrame(const std::string& payload) {
             sendEnvelope(bytes);
             break;
         }
+        case matchforge::v1::Envelope::kRegister: {
+            // The auth work runs on a worker thread. The callback comes back on the worker,
+            // so it hops onto this session's strand before touching any session state.
+            const auto& register_request = request.register_();
+            m_auth.registerAccount(register_request.username(), register_request.password(),
+                                   [self = shared_from_this()](auth::AuthResult result) {
+                                       boost::asio::post(self->m_strand,
+                                                         [self, result = std::move(result)] {
+                                                             self->handleAuthResult(result);
+                                                         });
+                                   });
+            break;
+        }
+        case matchforge::v1::Envelope::kLogin: {
+            const auto& login_request = request.login();
+            m_auth.login(login_request.username(), login_request.password(),
+                         [self = shared_from_this()](auth::AuthResult result) {
+                             boost::asio::post(self->m_strand, [self, result = std::move(result)] {
+                                 self->handleAuthResult(result);
+                             });
+                         });
+            break;
+        }
         case matchforge::v1::Envelope::PAYLOAD_NOT_SET:
-        case matchforge::v1::Envelope::kError: {
+        case matchforge::v1::Envelope::kError:
+        case matchforge::v1::Envelope::kAuth: {
             // Clients should never send an empty envelope or an ErrorResponse, so reject
             // them but keep the connection open. The client may simply have sent a bad request.
             matchforge::v1::Envelope reply;
@@ -116,6 +142,24 @@ void Session::handleFrame(const std::string& payload) {
             break;
         }
     }
+}
+
+void Session::handleAuthResult(const auth::AuthResult& result) {
+    matchforge::v1::Envelope reply;
+    if (result.ok) {
+        // The token is sent only to the connection that asked for it. It is never logged.
+        auto* authReply = reply.mutable_auth();
+        authReply->set_session_token(result.sessionToken);
+        authReply->set_username(result.username);
+    } else {
+        auto* error = reply.mutable_error();
+        error->set_code(result.errorCode);
+        error->set_message(result.errorMessage);
+    }
+
+    std::string bytes;
+    reply.SerializeToString(&bytes);
+    sendEnvelope(bytes);
 }
 
 void Session::sendEnvelope(const std::string& serializedEnvelope) {
