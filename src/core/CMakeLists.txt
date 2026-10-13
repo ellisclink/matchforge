@@ -5,7 +5,9 @@
 # and get its compiled code.
 add_library(matchforge_core STATIC
   Version.cpp
-  Validation.cpp)  # username and password rules
+  Validation.cpp   # username and password rules
+  Elo.cpp          # Elo rating formulas
+  Matchmaker.cpp)  # the matchmaking queue and matching algorithm
 
 # PUBLIC: anything that links matchforge_core gets this include folder too.
 # Adding src/ here lets code write #include "core/Version.h" from any folder.

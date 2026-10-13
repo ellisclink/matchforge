@@ -8,6 +8,8 @@ include(GoogleTest)
 add_executable(matchforge_tests
   core/VersionTest.cpp
   core/ValidationTest.cpp           # username and password rules
+  core/EloTest.cpp                  # Elo formulas against hand-checked values
+  core/MatchmakerTest.cpp           # queue and matching rules
   proto/EnvelopeTest.cpp            # Protobuf round-trip: the generated code works at runtime
   auth/PasswordHasherTest.cpp       # Argon2id hashing and session tokens
   auth/AuthServiceTest.cpp          # register and login rules, against the in-memory store
