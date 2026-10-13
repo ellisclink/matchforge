@@ -48,8 +48,12 @@ endif()
 # Finds the libraries vcpkg installed (listed in vcpkg.json). CONFIG means CMake
 # reads the config file each library ships with. REQUIRED stops the configure
 # step with an error if one is missing.
-find_package(spdlog CONFIG REQUIRED)  # logging, used by the server and bots
-find_package(GTest CONFIG REQUIRED)   # the test framework, used by tests/
+find_package(spdlog CONFIG REQUIRED)     # logging, used by the server and bots
+find_package(GTest CONFIG REQUIRED)      # the test framework, used by tests/
+find_package(boost_asio CONFIG REQUIRED) # sockets and the io_context event loop (provides Boost::asio)
+
+# Threads finds the thread library (pthreads on Linux). Asio and our server need it.
+find_package(Threads REQUIRED)
 
 # Makes the ctest command available. Without this, the test targets exist but
 # ctest finds nothing to run.
@@ -60,6 +64,7 @@ enable_testing()
 # dependencies between targets after reading every file.
 add_subdirectory(proto)        # matchforge_proto: generated Protobuf code
 add_subdirectory(src/core)     # matchforge_core: shared logic
+add_subdirectory(src/net)      # matchforge_net: TCP framing, sessions and the listening server
 add_subdirectory(src/server)   # matchforge_server: the server program
 add_subdirectory(src/bots)     # matchforge_bots: the load-test program
 add_subdirectory(tests)        # matchforge_tests: the GoogleTest suite
