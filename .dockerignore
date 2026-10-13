@@ -1,0 +1,10 @@
+# Files Docker should not send to the build. Keeps the build fast and keeps
+# local build output and secrets out of the image.
+build/
+vcpkg_installed/
+.git/
+.workflow/
+.vscode/
+.idea/
+.env
+*.log
