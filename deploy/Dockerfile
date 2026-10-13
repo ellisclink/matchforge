@@ -30,7 +30,9 @@ COPY . .
 RUN cmake --preset release && cmake --build --preset release
 
 # ---- Stage 2: runtime -------------------------------------------------------
-FROM ubuntu:24.04 AS runtime
+# Debian's slim image: small, and it has the C++ runtime (libstdc++) the server
+# needs. The server binary was tested on this image and runs (see DECISIONS.md D-010).
+FROM debian:bookworm-slim AS runtime
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 \

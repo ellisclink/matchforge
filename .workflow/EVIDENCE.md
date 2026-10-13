@@ -40,6 +40,13 @@
 - Command: `docker compose -f deploy/docker-compose.yml up --build -d`, then `docker ps -a` and `docker inspect deploy-server-1`
 - Result: pass. Image built (multi-stage). deploy-redis-1 Up and healthy. deploy-server-1 logged "[info] matchforge server 0.1.0" and exited with code 0.
 - Runtime check: `ldd` on the server binary shows only system libraries (libstdc++, libgcc_s, libc, libm). Nothing from vcpkg is needed at runtime.
+## D-010 test - 2026-10-13
+- Command: copied the Docker-built server out of deploy-server and ran it in debian:bookworm-slim: `docker run --rm -v <dir>:/app debian:bookworm-slim /app/matchforge_server`
+- Result: pass. Printed "[info] matchforge server 0.1.0", exit 0.
+- After switching the runtime stage to debian:bookworm-slim: `docker compose up --build -d` works; server exit 0; process runs as uid 999 (matchforge).
+## Sanitizer check - 2026-10-13
+- Command: g++ -std=c++20 -fsanitize=address,undefined on a deliberate out-of-bounds write
+- Result: pass. AddressSanitizer reported heap-buffer-overflow with the file and line.
 ## Compose config - 2026-10-12
 - Command: `docker compose -f deploy/docker-compose.yml config -q`
 - Result: pass (exit 0).
