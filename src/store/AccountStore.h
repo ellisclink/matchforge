@@ -31,6 +31,20 @@ public:
     // The username a session token belongs to, or nullopt if the token is unknown or expired.
     // Throws std::runtime_error if the storage backend fails.
     virtual std::optional<std::string> findSessionUser(std::string_view token) = 0;
+
+    // The player's saved Elo rating, or nullopt if none has been saved yet (a new player).
+    // Throws std::runtime_error if the storage backend fails.
+    virtual std::optional<int> findRating(std::string_view username) = 0;
+
+    // Saves the player's Elo rating, replacing any earlier value.
+    // Throws std::runtime_error if the storage backend fails.
+    virtual void saveRating(std::string_view username, int rating) = 0;
+
+    // Adds delta to the player's rating in one atomic step and returns the new rating.
+    // A player with no saved rating starts from startingRating. Atomic means two match
+    // results for the same player, arriving at the same time, are both applied.
+    // Throws std::runtime_error if the storage backend fails.
+    virtual int adjustRating(std::string_view username, int delta, int startingRating) = 0;
 };
 
 }  // namespace matchforge::store

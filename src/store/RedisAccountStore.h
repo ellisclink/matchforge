@@ -37,6 +37,9 @@ public:
     void saveSession(std::string_view token, std::string_view username,
                      std::chrono::seconds ttl) override;
     std::optional<std::string> findSessionUser(std::string_view token) override;
+    std::optional<int> findRating(std::string_view username) override;
+    void saveRating(std::string_view username, int rating) override;
+    int adjustRating(std::string_view username, int delta, int startingRating) override;
 
 private:
     // Sends one request on the I/O thread and waits for it to finish. The response object

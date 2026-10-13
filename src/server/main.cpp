@@ -16,8 +16,9 @@
 #include <vector>
 
 #include "auth/AuthService.h"
-#include "core/Version.h"  // Gives us matchforge::core::version().
-#include "net/Server.h"    // The listening socket.
+#include "core/Version.h"        // Gives us matchforge::core::version().
+#include "lobby/LobbyService.h"  // The matchmaking queue.
+#include "net/Server.h"          // The listening socket.
 #include "store/RedisAccountStore.h"
 
 namespace {
@@ -89,7 +90,21 @@ int main(int argc, char* argv[]) {
             ioContext.stop();
         });
 
-        matchforge::net::Server server(ioContext, port, kMaxFrameBytes, auth);
+        // The matchmaking queue. Modes and regions are fixed here for now; Milestone 8 moves
+        // them into a JSON config file.
+        matchforge::lobby::LobbySettings lobbySettings;
+        lobbySettings.modes = {{"duel", 1}, {"duo", 2}, {"squad", 4}};
+        lobbySettings.regions = {"eu", "na", "asia"};
+        // Game servers prove they may report results with this secret. Without it, results are
+        // rejected, so ratings cannot be changed by anyone.
+        lobbySettings.resultSecret = envOr("MATCHFORGE_RESULT_SECRET", "");
+        if (lobbySettings.resultSecret.empty()) {
+            spdlog::warn("MATCHFORGE_RESULT_SECRET is not set: match results will be rejected");
+        }
+        matchforge::lobby::LobbyService lobby(ioContext, store, authWorkers, lobbySettings);
+        lobby.start();
+
+        matchforge::net::Server server(ioContext, port, kMaxFrameBytes, auth, lobby);
         server.start();
         spdlog::info("listening on port {}", server.localPort());
 

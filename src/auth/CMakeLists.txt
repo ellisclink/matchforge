@@ -12,9 +12,9 @@ target_include_directories(matchforge_auth PUBLIC "${PROJECT_SOURCE_DIR}/src")
 target_link_libraries(matchforge_auth
   PUBLIC
     matchforge_store     # AccountStore interface
+    matchforge_core      # Elo defaults in AuthResult, and the validation rules
     Boost::asio          # thread_pool for worker threads
   PRIVATE
-    matchforge_core      # Validation: username and password rules
     unofficial-sodium::sodium  # Argon2id and random bytes
     spdlog::spdlog       # logging of failures (never passwords)
     matchforge_warnings)

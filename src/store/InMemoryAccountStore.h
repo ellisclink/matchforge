@@ -20,6 +20,9 @@ public:
     void saveSession(std::string_view token, std::string_view username,
                      std::chrono::seconds ttl) override;
     std::optional<std::string> findSessionUser(std::string_view token) override;
+    std::optional<int> findRating(std::string_view username) override;
+    void saveRating(std::string_view username, int rating) override;
+    int adjustRating(std::string_view username, int delta, int startingRating) override;
 
 private:
     struct Session {
@@ -31,6 +34,7 @@ private:
     std::mutex m_mutex;
     std::unordered_map<std::string, std::string> m_passwordHashes;  // username -> hash
     std::unordered_map<std::string, Session> m_sessions;            // token -> session
+    std::unordered_map<std::string, int> m_ratings;                 // username -> Elo rating
 };
 
 }  // namespace matchforge::store

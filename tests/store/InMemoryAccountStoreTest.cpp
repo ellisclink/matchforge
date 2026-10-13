@@ -38,3 +38,18 @@ TEST(InMemoryAccountStoreTest, ExpiredSessionsAreForgotten) {
 
     EXPECT_FALSE(store.findSessionUser("short-lived").has_value());
 }
+
+TEST(InMemoryAccountStoreTest, RatingsAreSavedAndRead) {
+    InMemoryAccountStore store;
+
+    EXPECT_FALSE(store.findRating("alice").has_value());  // New player: nothing saved.
+    store.saveRating("alice", 1620);
+    EXPECT_EQ(store.findRating("alice"), 1620);
+}
+
+TEST(InMemoryAccountStoreTest, AdjustRatingStartsFromTheStartingRating) {
+    InMemoryAccountStore store;
+
+    EXPECT_EQ(store.adjustRating("newbie", +16, 1500), 1516);  // No saved rating: 1500 + 16.
+    EXPECT_EQ(store.adjustRating("newbie", -10, 1500), 1506);  // Then applied to the saved value.
+}

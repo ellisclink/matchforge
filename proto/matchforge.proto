@@ -5,6 +5,9 @@ package matchforge.v1;
 // Every message sent over the network is wrapped in an Envelope. The oneof
 // means exactly one payload is set, so the receiver reads the envelope first
 // and then checks which payload arrived.
+//
+// Field numbers are part of the wire format: never reuse or renumber them.
+// New messages get new numbers at the end.
 message Envelope {
     oneof payload {
         Heartbeat heartbeat = 1;
@@ -12,6 +15,12 @@ message Envelope {
         RegisterRequest register = 3;
         LoginRequest login = 4;
         AuthResponse auth = 5;
+        JoinQueueRequest join_queue = 6;
+        LeaveQueueRequest leave_queue = 7;
+        QueueStatus queue_status = 8;
+        MatchFound match_found = 9;
+        ReportMatchResult report_result = 10;
+        MatchResultAck result_ack = 11;
     }
 }
 
@@ -22,6 +31,9 @@ message Heartbeat {
 }
 
 // The server sends this when it cannot handle a request.
+// Codes follow HTTP: 400 bad request, 401 not logged in or bad credentials,
+// 403 not allowed, 404 not found, 409 conflict, 429 too many requests,
+// 503 temporarily unavailable.
 message ErrorResponse {
     int32 code = 1;
     string message = 2;
@@ -46,4 +58,55 @@ message AuthResponse {
     // Proves who the client is on later requests. Keep it secret.
     string session_token = 1;
     string username = 2;
+    // The player's current Elo rating.
+    int32 rating = 3;
+}
+
+// Asks to wait for a match. Only allowed after a successful login on this connection.
+message JoinQueueRequest {
+    string mode = 1;    // for example "duel" or "duo"
+    string region = 2;  // for example "eu" or "na"
+}
+
+// Asks to stop waiting for a match.
+message LeaveQueueRequest {}
+
+// The server's answer to join and leave: whether the player is now waiting.
+message QueueStatus {
+    bool queued = 1;
+    string mode = 2;
+    string region = 3;
+}
+
+// One player in a match, as shown to the other players.
+message PlayerInfo {
+    string username = 1;
+    int32 rating = 2;
+}
+
+message TeamRoster {
+    repeated PlayerInfo players = 1;
+}
+
+// Sent to every player in a new match. The player is no longer in the queue.
+message MatchFound {
+    string match_id = 1;
+    string mode = 2;
+    string region = 3;
+    repeated TeamRoster teams = 4;  // always two teams: index 0 and index 1
+    int32 your_team = 5;            // 0 or 1: which roster the receiving player is on
+}
+
+// Sent by a trusted game server when a match ends. The secret proves the sender is
+// allowed to change ratings; players never see it.
+message ReportMatchResult {
+    string match_id = 1;
+    int32 winning_team = 2;  // 0 or 1, or -1 for a draw
+    string result_secret = 3;
+}
+
+// The server's answer to ReportMatchResult: everyone's rating after the match.
+message MatchResultAck {
+    string match_id = 1;
+    repeated PlayerInfo new_ratings = 2;
 }

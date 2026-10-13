@@ -27,6 +27,8 @@ std::string accountKey(std::string_view username) { return "account:" + std::str
 
 std::string sessionKey(std::string_view token) { return "session:" + std::string(token); }
 
+std::string ratingKey(std::string_view username) { return "rating:" + std::string(username); }
+
 }  // namespace
 
 RedisAccountStore::RedisAccountStore(std::string host, std::string port)
@@ -144,6 +146,59 @@ std::optional<std::string> RedisAccountStore::findSessionUser(std::string_view t
         throw std::runtime_error("redis GET failed");
     }
     return result.value();
+}
+
+std::optional<int> RedisAccountStore::findRating(std::string_view username) {
+    boost::redis::request request;
+    request.push("GET", ratingKey(username));
+
+    boost::redis::response<std::optional<std::string>> response;
+    run(request, response);
+
+    const auto& result = std::get<0>(response);
+    if (result.has_error()) {
+        throw std::runtime_error("redis GET failed");
+    }
+    if (!result.value().has_value()) {
+        return std::nullopt;  // No rating saved yet: a new player.
+    }
+    try {
+        return std::stoi(*result.value());
+    } catch (const std::exception&) {
+        // Someone wrote a non-number under this key. Treat it as a storage error rather
+        // than silently resetting the player's rating.
+        throw std::runtime_error("redis rating value is not a number");
+    }
+}
+
+void RedisAccountStore::saveRating(std::string_view username, int rating) {
+    boost::redis::request request;
+    request.push("SET", ratingKey(username), std::to_string(rating));
+
+    boost::redis::response<std::string> response;
+    run(request, response);
+
+    if (std::get<0>(response).has_error()) {
+        throw std::runtime_error("redis SET failed");
+    }
+}
+
+int RedisAccountStore::adjustRating(std::string_view username, int delta, int startingRating) {
+    // Two commands sent together in one request:
+    //   SETNX  creates the key with the starting rating only if the player has none yet.
+    //   INCRBY adds delta and returns the new value. Redis runs each command atomically,
+    //          so concurrent results for the same player cannot overwrite each other.
+    boost::redis::request request;
+    request.push("SETNX", ratingKey(username), std::to_string(startingRating));
+    request.push("INCRBY", ratingKey(username), delta);
+
+    boost::redis::response<long long, long long> response;
+    run(request, response);
+
+    if (std::get<0>(response).has_error() || std::get<1>(response).has_error()) {
+        throw std::runtime_error("redis rating update failed");
+    }
+    return static_cast<int>(std::get<1>(response).value());
 }
 
 }  // namespace matchforge::store

@@ -25,6 +25,9 @@ services:
     environment:
       MATCHFORGE_REDIS_HOST: redis
       MATCHFORGE_REDIS_PORT: "6379"
+      # The secret game servers send with match results. It comes from your shell or from a
+      # deploy/.env file (never committed). Unset means empty, which disables result reporting.
+      MATCHFORGE_RESULT_SECRET: ${MATCHFORGE_RESULT_SECRET:-}
     # Publish the game port to your computer, so a client on the host can connect.
     ports:
       - "7777:7777"

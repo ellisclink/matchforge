@@ -44,4 +44,26 @@ std::optional<std::string> InMemoryAccountStore::findSessionUser(std::string_vie
     return it->second.username;
 }
 
+std::optional<int> InMemoryAccountStore::findRating(std::string_view username) {
+    std::lock_guard lock(m_mutex);
+    const auto it = m_ratings.find(std::string(username));
+    if (it == m_ratings.end()) {
+        return std::nullopt;
+    }
+    return it->second;
+}
+
+void InMemoryAccountStore::saveRating(std::string_view username, int rating) {
+    std::lock_guard lock(m_mutex);
+    m_ratings[std::string(username)] = rating;
+}
+
+int InMemoryAccountStore::adjustRating(std::string_view username, int delta, int startingRating) {
+    std::lock_guard lock(m_mutex);  // The lock makes read-modify-write one step.
+    // try_emplace inserts startingRating only when the player has no rating yet.
+    auto [it, inserted] = m_ratings.try_emplace(std::string(username), startingRating);
+    it->second += delta;
+    return it->second;
+}
+
 }  // namespace matchforge::store

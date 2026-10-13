@@ -72,6 +72,7 @@ add_subdirectory(proto)        # matchforge_proto: generated Protobuf code
 add_subdirectory(src/core)     # matchforge_core: shared logic
 add_subdirectory(src/store)    # matchforge_store: account and session storage (in memory, Redis)
 add_subdirectory(src/auth)     # matchforge_auth: password hashing, tokens, register and login
+add_subdirectory(src/lobby)    # matchforge_lobby: the matchmaking queue service and match results
 add_subdirectory(src/net)      # matchforge_net: TCP framing, sessions and the listening server
 add_subdirectory(src/server)   # matchforge_server: the server program
 add_subdirectory(src/bots)     # matchforge_bots: the load-test program

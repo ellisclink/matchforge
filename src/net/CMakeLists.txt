@@ -17,6 +17,7 @@ target_link_libraries(matchforge_net
     Boost::asio          # sockets, timers, io_context
     matchforge_proto     # Envelope and the other message types
     matchforge_auth      # register and login
+    matchforge_lobby     # the matchmaking queue
     Threads::Threads     # pthreads, needed by Asio on Linux
   PRIVATE
     matchforge_warnings) # our strict warning flags

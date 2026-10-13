@@ -16,7 +16,8 @@ add_executable(matchforge_tests
   store/InMemoryAccountStoreTest.cpp
   store/RedisAccountStoreTest.cpp   # real Redis; skipped unless MATCHFORGE_TEST_REDIS_PORT is set
   net/FramingTest.cpp               # frame encoder and decoder (no sockets)
-  net/ServerTest.cpp)               # integration: a real server on loopback and a client socket
+  net/ServerTest.cpp                # integration: a real server on loopback and a client socket
+  lobby/LobbyTest.cpp)              # queue, matches, results and concurrency, over TCP               # integration: a real server on loopback and a client socket
 
 # Libraries the tests need.
 #   matchforge_core      the code under test (version(), validation)
@@ -34,6 +35,7 @@ target_link_libraries(matchforge_tests
     matchforge_net
     matchforge_auth
     matchforge_store
+    matchforge_lobby
     Boost::asio
     Threads::Threads
     GTest::gtest_main
@@ -41,4 +43,8 @@ target_link_libraries(matchforge_tests
 
 # After the program is built, CMake runs it with --gtest_list_tests, finds every
 # TEST() name, and registers each one with ctest. So a single `ctest` run covers all tests.
-gtest_discover_tests(matchforge_tests)
+# Lets tests include shared helpers such as "net/TestSupport.h".
+target_include_directories(matchforge_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# DISCOVERY_TIMEOUT: the test binary is large with sanitizers on; give listing tests time.
+gtest_discover_tests(matchforge_tests DISCOVERY_TIMEOUT 60)

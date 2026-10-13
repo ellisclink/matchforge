@@ -59,6 +59,23 @@ TEST(RedisAccountStoreTest, SessionsRoundTripThroughRedis) {
     EXPECT_EQ(store.findSessionUser(token), "alice");
 }
 
+TEST(RedisAccountStoreTest, RatingsAreAdjustedAtomically) {
+    const std::string port = testRedisPort();
+    if (port.empty()) {
+        GTEST_SKIP() << "set MATCHFORGE_TEST_REDIS_PORT to run the Redis tests";
+    }
+
+    matchforge::store::RedisAccountStore store("127.0.0.1", port);
+    const std::string name = uniqueName("ratingtest");
+
+    EXPECT_FALSE(store.findRating(name).has_value());
+    EXPECT_EQ(store.adjustRating(name, 16, 1500), 1516);  // SETNX 1500, then INCRBY 16.
+    EXPECT_EQ(store.adjustRating(name, -20, 1500), 1496);
+    EXPECT_EQ(store.findRating(name), 1496);
+    store.saveRating(name, 1700);
+    EXPECT_EQ(store.findRating(name), 1700);
+}
+
 TEST(RedisAccountStoreTest, ThrowsWhenRedisIsUnreachable) {
     // Port 1 is never open for Redis, so every command fails. The error must be reported as an
     // exception, which the auth code turns into a 503 for the client.

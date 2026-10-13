@@ -76,6 +76,7 @@ AuthResult doRegister(store::AccountStore& store, const std::string& rawUsername
         result.ok = true;
         result.sessionToken = token;
         result.username = username;
+        result.rating = core::kDefaultRating;  // New accounts start at the default rating.
         return result;
     } catch (const std::exception& error) {
         // Log the cause for the operator, but never the password. The client gets a generic
@@ -115,6 +116,8 @@ AuthResult doLogin(store::AccountStore& store, const std::string& rawUsername,
         result.ok = true;
         result.sessionToken = token;
         result.username = username;
+        // A player who has never finished a match has no saved rating yet.
+        result.rating = store.findRating(username).value_or(core::kDefaultRating);
         return result;
     } catch (const std::exception& error) {
         spdlog::error("login failed: {}", error.what());

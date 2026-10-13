@@ -11,6 +11,7 @@ target_link_libraries(matchforge_server
     matchforge_core      # our version() function
     matchforge_net       # the TCP server, framing and sessions
     matchforge_auth      # register and login
+    matchforge_lobby     # the matchmaking queue
     matchforge_store     # Redis account storage
     spdlog::spdlog       # logging (spdlog::info)
     Boost::asio          # io_context, thread_pool and signal handling

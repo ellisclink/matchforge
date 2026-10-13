@@ -6,6 +6,7 @@
 #include <functional>
 #include <string>
 
+#include "core/Elo.h"
 #include "store/AccountStore.h"
 
 namespace matchforge::auth {
@@ -17,6 +18,8 @@ struct AuthResult {
     std::string username;  // Set when ok is true; the lowercase name the account is stored under.
     std::int32_t errorCode = 0;  // Set when ok is false. Uses the same codes as ErrorResponse.
     std::string errorMessage;    // Safe to show to the client. Never contains the password.
+    // Set when ok is true: the player's saved Elo rating, or the default for a new player.
+    int rating = core::kDefaultRating;
 };
 
 // Called once with the outcome. It runs on a worker thread, not the thread that made the request.
