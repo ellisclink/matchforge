@@ -2,7 +2,7 @@
 # and the second stage copies only the finished program into a small image.
 
 # ---- Stage 1: build ---------------------------------------------------------
-FROM ubuntu:24.04 AS build
+FROM ubuntu:26.04 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 # Package versions are not pinned: Ubuntu security updates would break a pinned build.
@@ -33,7 +33,7 @@ RUN cmake --preset release && cmake --build --preset release
 # Same Ubuntu release as the build stage. The server is built against Ubuntu 24.04's
 # C library and C++ runtime (GLIBC 2.38+, GLIBCXX 3.4.32), and Debian bookworm has
 # older ones, so the binary would not start there. See DECISIONS.md D-019.
-FROM ubuntu:24.04 AS runtime
+FROM ubuntu:26.04 AS runtime
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 \
