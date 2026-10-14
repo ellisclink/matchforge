@@ -62,7 +62,7 @@ jobs:
       - name: Restore built packages
         # Rebuilding Boost from source takes a long time. Keyed on vcpkg.json,
         # so the cache is reused until dependencies change.
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/vcpkg-archives
           key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
