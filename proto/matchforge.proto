@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package matchforge.v1;
+
+// Every message sent over the network is wrapped in an Envelope. The oneof
+// means exactly one payload is set, so the receiver reads the envelope first
+// and then checks which payload arrived.
+message Envelope {
+  oneof payload {
+    Heartbeat heartbeat = 1;
+    ErrorResponse error = 2;
+  }
+}
+
+// Either side sends this to show the connection is still alive.
+message Heartbeat {
+  // Sender's clock in milliseconds since the Unix epoch.
+  uint64 sent_at_unix_ms = 1;
+}
+
+// The server sends this when it cannot handle a request.
+message ErrorResponse {
+  int32 code = 1;
+  string message = 2;
+}

@@ -1,0 +1,7 @@
+# Backlog
+- 2026-10-13: Pin clang-format to 14.0.6 locally too (the local apt copy is 14.0.0). Out of scope: CI already checks with 14.0.6, and the two agree on this repo today.
+- 2026-10-13: Pin the docker base images by digest, not just by tag. Out of scope: Dependabot now proposes tag updates, and digest pinning needs a tool we have not installed.
+- 2026-10-13: Add branch protection on main requiring CI to pass. Out of scope: a GitHub setting, and the user should choose it.
+- 2026-10-13: Add clang-tidy static analysis. Out of scope: it needs a version choice and will report many findings to triage.
+- 2026-10-13: Add a server-side check that Redis is reachable. Out of scope: Redis is not used until the accounts milestone.
+- 2026-10-13: Fix the earlier commit that also contains the README update (the CMake commit f5c7e43). Out of scope: history is already pushed, and a rewrite needs your OK.

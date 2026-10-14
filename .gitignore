@@ -1,0 +1,27 @@
+# Build output. Anyone can regenerate it, so it is never committed.
+build/
+out/
+
+# vcpkg installs its packages into this folder inside the project (manifest mode).
+vcpkg_installed/
+
+# Your personal CMake presets. CMakePresets.json (the shared one) is committed.
+CMakeUserPresets.json
+
+# Compiler and tool caches.
+.cache/
+*.o
+*.obj
+*.a
+*.so
+*.exe
+
+# Editor settings that differ per person.
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs and local config with secrets. Secrets must never be committed.
+*.log
+.env

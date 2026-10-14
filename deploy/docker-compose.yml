@@ -1,0 +1,24 @@
+# Starts the matchforge server next to a Redis database.
+# Run from the repo root: docker compose -f deploy/docker-compose.yml up --build
+services:
+  redis:
+    image: redis:7.4-alpine
+    # Only other containers on this network can reach Redis. Nothing is exposed to your computer.
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      # The build context is the repo root, so the Dockerfile can copy the whole project.
+      context: ..
+      dockerfile: deploy/Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Milestone 0's server prints its version and exits, so do not restart it.
+    restart: "no"
