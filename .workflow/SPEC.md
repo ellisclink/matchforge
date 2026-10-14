@@ -1,35 +1,35 @@
-# Spec: matchforge v0 - project setup
-
-## In plain English
-matchforge is a program that runs on a server. Players connect to it over the internet, log in, and join a queue to play a game. The server looks at everyone waiting and groups players of similar skill together. Skill is measured with an Elo rating, the same number system chess uses: you gain points when you win and lose points when you lose, and beating a stronger player gives you more points.
-
-This milestone does not build any of that yet. It builds the empty framework that the later work will sit on: the folders, the build settings, two programs that start and print their version, one test, and the setup for running everything in Docker. The goal is that when you type the build command, everything compiles, the test passes, and both programs run.
-
-Milestone 0 creates these parts:
-- **server**: the main program. For now it only prints its version and quits.
-- **bots**: a second program that will later pretend to be many players, to load-test the server. For now it only prints its version and quits.
-- **core**: the code for matching players, kept free of networking so it can be tested alone. Empty for now.
-- **proto**: the file that describes the messages players send and receive. It contains a "heartbeat" message (a "still alive" ping) and an "error" message.
-- **tests**: one test that always passes, to prove the test system works.
-- **Docker setup**: a way to package the server and start it next to a Redis database (a fast storage system used for player accounts later).
-
-If you are new to these terms, see the glossary at the end of PLAN.md.
+# Spec: matchforge v1 - TCP framing and sessions
 
 ## Goal
-A buildable, tested, containerised C++20 skeleton for the matchforge matchmaking server. No game or networking logic yet.
+Clients can connect to the server over TCP, send framed Protobuf messages, and get replies. This is the networking base for every later milestone.
+
 ## Users and main flows
-- The author builds, tests, and runs the skeleton locally in WSL2 and in Docker.
+- A client connects, sends a Heartbeat, and receives a Heartbeat back with the server's clock.
+- A client sends a malformed message and receives an ErrorResponse, then the connection closes.
+- A client sends a frame larger than the limit, and the connection closes without a reply.
+
 ## In scope
-- Folder layout from CLAUDE.md; vcpkg manifest; CMake targets; CMakePresets (debug, release); proto package matchforge.v1 with Envelope (Heartbeat, ErrorResponse); server and bots mains that log the version; one GoogleTest test; .clang-format, .gitignore, .editorconfig; CI workflow; Dockerfile and compose (server + Redis); README stub.
+- Length-prefixed framing (4-byte big-endian length), with a size limit.
+- A Session per connection, serialized by a strand.
+- A Server that accepts connections, on a port from the command line (default 7777).
+- The server program runs until Ctrl+C or SIGTERM, then shuts down cleanly.
+- Unit tests for framing; integration tests for the server.
+
 ## Non-goals
-- Protobuf framing on the wire, Asio networking, Redis calls, matchmaking/Elo logic, Prometheus/Grafana (Milestone 9).
+- Login, accounts, lobby, or matchmaking (v2 and later).
+- Redis (not used yet).
+- Configuration files (v8). The port and frame limit are fixed values for now.
+
 ## Acceptance criteria
-- [ ] AC-1: `cmake --preset debug && cmake --build --preset debug && ctest --preset debug` passes in WSL2 (NVIDIA-Workbench distro)
-- [ ] AC-2: `cmake --preset release` configures and builds
-- [ ] AC-3: `matchforge_server` and `matchforge_bots` each print the version via spdlog and exit 0
-- [ ] AC-4: One GoogleTest test is discovered and passes under ctest
-- [ ] AC-5: `docker compose -f deploy/docker-compose.yml up --build` builds and starts the server and Redis containers
-- [ ] AC-6: `.github/workflows/ci.yml` validates with `actionlint`
-- [ ] AC-7: Sources are formatted: `clang-format --dry-run --Werror` passes
+- [ ] AC-1: `ctest --preset debug` passes, including 12 tests (framing, server, and earlier tests)
+- [ ] AC-2: `ctest --preset release` passes
+- [ ] AC-3: the running server answers a Heartbeat frame with a Heartbeat frame that carries a non-zero clock value
+- [ ] AC-4: a malformed frame gets an ErrorResponse, then the connection closes
+- [ ] AC-5: a frame above 64 KiB closes the connection without a reply
+- [ ] AC-6: Ctrl+C stops the server cleanly (log line "server stopped", exit 0)
+- [ ] AC-7: `docker compose up` starts the server and it stays running; the published port 7777 answers a heartbeat
+- [ ] AC-8: `clang-format --dry-run --Werror` passes on all sources
+- [ ] AC-9: CI passes on both presets
+
 ## Assumptions (see DECISIONS.md)
-- D-001, D-002, D-003
+- D-015 (roadmap), D-016 (server now runs until stopped; supersedes D-011's exit-after-log), D-017 (64 KiB limit), D-018 (error policy)

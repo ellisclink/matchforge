@@ -93,7 +93,7 @@ A Docker image is a packaged filesystem that can run anywhere. Building the serv
 A **multi-stage Dockerfile** has two `FROM` lines:
 
 - **Stage 1 (`build`)** starts from `ubuntu:24.04`, installs all the build tools, and builds the server.
-- **Stage 2 (`runtime`)** starts from `debian:bookworm-slim`, which is small. It copies only the finished binary from stage 1 with `COPY --from=build`.
+- **Stage 2 (`runtime`)** starts from `ubuntu:24.04`, the same release as stage 1. It copies only the finished binary from stage 1 with `COPY --from=build`. The two stages must match, because the binary needs the same C library version it was built with. Milestone 0 used Debian bookworm here, and it worked only because that binary was simple. Milestone 1 showed the binary failed on bookworm (see `.workflow/DECISIONS.md`, D-019).
 
 The final image has no compiler, no source code, and no build cache. It is smaller and has less to attack.
 

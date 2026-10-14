@@ -1,0 +1,30 @@
+{
+  "port": 7777,
+  "maxFrameBytes": 65536,
+  "metricsPort": 9100,
+  "workerThreads": 4,
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379
+  },
+  "matchmaking": {
+    "tickMilliseconds": 250,
+    "baseRatingWindow": 100,
+    "windowGrowthPerSecond": 10,
+    "maxRatingWindow": 600,
+    "kFactor": 32,
+    "regions": ["eu", "na", "asia"],
+    "modes": [
+      { "name": "duel", "teamSize": 1 },
+      { "name": "duo", "teamSize": 2 },
+      { "name": "squad", "teamSize": 4 }
+    ]
+  },
+  "limits": {
+    "idleTimeoutSeconds": 60,
+    "messagesPerSecond": 20,
+    "messageBurst": 40,
+    "maxLoginFailures": 5,
+    "loginLockoutSeconds": 300
+  }
+}

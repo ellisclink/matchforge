@@ -47,6 +47,59 @@
 ## Sanitizer check - 2026-10-13
 - Command: g++ -std=c++20 -fsanitize=address,undefined on a deliberate out-of-bounds write
 - Result: pass. AddressSanitizer reported heap-buffer-overflow with the file and line.
+## AC-4 (second test, D-014) - 2026-10-13
+- Command: `cmake --build --preset debug && ctest --preset debug`, then the same with `release`
+- Result: pass on both presets. "100% tests passed, 0 tests failed out of 2" (VersionTest.ReportsTheVersionCMakeConfigured and EnvelopeTest.HeartbeatSurvivesSerializeAndParse).
+## AC-7 (after adding the test) - 2026-10-13
+- Command: `clang-format --dry-run --Werror` on every .cpp and .h file, using clang-format 14.0.6 in a python:3.12-slim container
+- Result: pass (FORMAT_EXIT=0)
+## AC-5 (accepted under D-011) - 2026-10-13
+- Command: `docker compose up --build` and `docker compose up -d --force-recreate` after a full `--no-cache` build
+- Result: pass. Build exit 0. Redis healthy. Server logs "[info] matchforge server 0.1.0" and exits 0.
+## v1 AC-1 and AC-2 - 2026-10-13
+- Command: `ctest --preset debug --output-on-failure` and `ctest --preset release`
+- Result: pass on both. 100% tests passed, 0 failed out of 12 (2 earlier + 7 framing + 3 server).
+## v1 AC-3 - 2026-10-13
+- Command: real server on port 7788, Python client sends Envelope{heartbeat{42}} as a framed message
+- Result: pass. Reply length 9, bytes 0a0708e5e2e7979334 (a heartbeat with a non-zero clock).
+## v1 AC-6 - 2026-10-13
+- Command: `timeout --preserve-status -s INT 3 matchforge_server 7791`
+- Result: pass. Log "received signal 2, shutting down" then "server stopped". Exit code 0.
+## v1 AC-7 - 2026-10-13
+- Command: `docker compose up --build -d`; then a heartbeat sent to 127.0.0.1:7777
+- Result: pass after D-019. Server container Up, port 7777 published, heartbeat reply received.
+- First attempt failed: the bookworm runtime lacked GLIBCXX_3.4.32 and GLIBC_2.38. Fixed by D-019.
+## v1 AC-8 - 2026-10-13
+- Command: clang-format 14.0.6 `--dry-run --Werror` on every .cpp and .h file
+- Result: pass (FORMAT_EXIT=0)
+## v2 (accounts and login) - 2026-10-13
+- Debug build and ctest: 100% passed, 41 of 41 tests, with MATCHFORGE_TEST_REDIS_PORT=6380 (real Redis) so the 3 Redis tests run.
+- Release build and ctest: 100% passed, 41 of 41.
+- Formatting: clang-format 14.0.6 --dry-run --Werror passes on all .cpp and .h files.
+- Docker: docker compose up --build. Server log shows "accounts stored in redis at redis:6379" and "Connected to Redis server ... (TLS disabled)". Server stays up.
+- End to end through the published port 7777 (python client, Protobuf frames by hand):
+  - register e2e... -> auth reply with session token (43 chars)
+  - login with the same password -> auth reply
+  - login with wrong password -> error 401 "invalid username or password"
+  - register same name again -> error 409 "username already taken"
+- Bugs found and fixed during v2: OpenSSL headers missing (D-020); Boost.Redis implementation not compiled in (src.hpp, see BoostRedisSource.cpp); Redis commands hanging when Redis is down (2-second timeout, D-022); test fixture I/O thread returning early (work guard).
+
+## CI - 2026-10-13
+- Run 38331642058 on commit 4e5b671: success on both presets, all steps, including "Check formatting".
 ## Compose config - 2026-10-12
 - Command: `docker compose -f deploy/docker-compose.yml config -q`
 - Result: pass (exit 0).
+
+## v3 matchmaking core - 2026-10-13
+- ctest -R "Elo|Matchmaker" (debug): 21 of 21 passed (7 Elo, 14 Matchmaker). Values checked by hand: upset 1400 vs 1600 gives +24; snake draft 1300/1250/1240/1210 gives 2510 vs 2490.
+## v4-v6 lobby, concurrency, ratings - 2026-10-13
+- Debug (sanitizers) and release: 76 of 76 passed, including 16 concurrent clients each matched exactly once, result reporting (+16/-16), wrong secret 403, duplicate report 404, draw unchanged, disconnected player not matched.
+## v7 bots - 2026-10-13
+- Debug: 86 of 86 passed. Docker: 20 bots x 3 rounds: 60 matches joined, 30 results, 0 errors, p50 250 ms, p95 414 ms.
+## v8 config and limits - 2026-10-13
+- Debug: 109 of 109 passed (config parsing and validation, shipped config file, token bucket, login lockout, idle timeout, 429 and flood disconnect over TCP).
+- Startup checks: unknown key, missing file and unknown flag each exit 2 with the setting named.
+- Docker: container log "loaded config /etc/matchforge/server.json"; 40 bots x 3 rounds: 120 matches, 60 results, 0 errors.
+## v9 metrics and dashboards - 2026-10-13
+- Debug: 112 of 112 passed (metric values unit-tested and recorded by a real server).
+- Docker: 60 bots x 3 rounds: 180 matches joined, 90 results, 0 errors. Prometheus target "up"; queries: matches_created 90, results_applied 90, registrations 60, queue_wait count 180, players_queued 0. Grafana health ok; dashboard "matchforge" with 8 panels served.

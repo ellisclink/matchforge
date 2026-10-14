@@ -30,9 +30,10 @@ COPY . .
 RUN cmake --preset release && cmake --build --preset release
 
 # ---- Stage 2: runtime -------------------------------------------------------
-# Debian's slim image: small, and it has the C++ runtime (libstdc++) the server
-# needs. The server binary was tested on this image and runs (see DECISIONS.md D-010).
-FROM debian:bookworm-slim AS runtime
+# Same Ubuntu release as the build stage. The server is built against Ubuntu 24.04's
+# C library and C++ runtime (GLIBC 2.38+, GLIBCXX 3.4.32), and Debian bookworm has
+# older ones, so the binary would not start there. See DECISIONS.md D-019.
+FROM ubuntu:24.04 AS runtime
 
 # hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 \
@@ -42,6 +43,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 \
 RUN useradd --system --no-create-home --shell /usr/sbin/nologin matchforge
 
 COPY --from=build /src/build/release/src/server/matchforge_server /usr/local/bin/matchforge_server
+# The bot load simulator ships in the same image; compose runs it on demand (profile "load").
+COPY --from=build /src/build/release/src/bots/matchforge_bots /usr/local/bin/matchforge_bots
 
 USER matchforge
-ENTRYPOINT ["/usr/local/bin/matchforge_server"]
+# Default settings. Mount a different file over this path to change them without rebuilding.
+COPY config/server.json /etc/matchforge/server.json
+
+# Documentation only: the game port and the Prometheus metrics port.
+EXPOSE 7777 9100
+
+ENTRYPOINT ["/usr/local/bin/matchforge_server", "--config", "/etc/matchforge/server.json"]

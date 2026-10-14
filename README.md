@@ -1,12 +1,56 @@
 # matchforge
 
-A multiplayer lobby and Elo matchmaking server in C++. Players log in, queue for a match mode in a region, and are grouped with players of similar skill.
+A multiplayer lobby and Elo matchmaking server in C++20. Players register and log in, join a
+queue for a game mode in a region, and are matched with players of similar skill. Game
+servers report results, and everyone's Elo rating is updated.
 
-Status: Milestone 0 (project setup). The programs only print their version. Matchmaking and networking come in later milestones.
+Version 0.9.0: all nine roadmap milestones are built (see `.workflow/ROADMAP.md`).
+
+## Features
+
+- **Protocol:** raw TCP, each message a Protobuf `Envelope` behind a 4-byte big-endian length.
+- **Accounts:** Argon2id password hashing (libsodium), 256-bit session tokens, Redis storage.
+- **Matchmaking:** queues per mode and region; a rating window that widens the longer a
+  player waits (100 to 600 points); snake-draft team balancing; 1v1, 2v2 and 4v4 modes.
+- **Ratings:** Elo with team averages; results reported by game servers with a shared
+  secret; atomic updates in Redis.
+- **Concurrency:** Boost.Asio with a thread pool; every session and the lobby own a strand,
+  so shared state needs no locks; slow work (hashing, Redis) runs on worker threads.
+- **Protection:** frame size limit, per-connection rate limit, idle timeout, login lockout,
+  strict input validation.
+- **Configuration:** `config/server.json`, validated at startup.
+- **Operations:** Docker Compose stack with Redis, Prometheus metrics and a Grafana dashboard;
+  a bot load simulator.
+
+## Quick start (Docker)
+
+```bash
+export MATCHFORGE_RESULT_SECRET=change-me
+docker compose -f deploy/docker-compose.yml up --build -d
+```
+
+| Service | Address | What it is |
+|---|---|---|
+| server | `localhost:7777` | the matchmaking server (TCP) |
+| Prometheus | http://localhost:9090 | metrics storage and queries |
+| Grafana | http://localhost:3000 | dashboard "matchforge" (view without login) |
+
+Run a load test against it:
+
+```bash
+docker compose -f deploy/docker-compose.yml --profile load run --rm bots --bots 100 --rounds 5
+```
+
+Stop everything:
+
+```bash
+docker compose -f deploy/docker-compose.yml down
+```
 
 ## Build and test (WSL2 / Ubuntu)
 
-You need cmake, ninja, g++ and vcpkg installed, with `VCPKG_ROOT` pointing at your vcpkg folder.
+You need cmake, ninja, g++, vcpkg (with `VCPKG_ROOT` set), and the `autoconf autoconf-archive
+automake libtool` packages for libsodium.
 
 ```bash
 export VCPKG_ROOT=$HOME/vcpkg
@@ -15,49 +59,71 @@ cmake --build --preset debug
 ctest --preset debug --output-on-failure
 ```
 
-Release build:
+The Redis store tests are skipped unless a test Redis is available:
 
 ```bash
-cmake --preset release
-cmake --build --preset release
+docker run -d --name mf-test-redis -p 6380:6379 redis:7.4-alpine
+MATCHFORGE_TEST_REDIS_PORT=6380 ctest --preset debug --output-on-failure
 ```
 
-## What the presets do
+Release build: `cmake --preset release && cmake --build --preset release`.
 
-`CMakePresets.json` is plain JSON, so it cannot hold comments. This table explains each setting.
+## Running the server directly
 
-| Preset | Build type | Sanitizers | Used for |
-|---|---|---|---|
-| `base` (hidden) | Set by the presets below | Off by default | Shared settings: Ninja generator, vcpkg toolchain, and where files go |
-| `debug` | Debug | On (ASan and UBSan) | Day-to-day work and tests. Catches memory bugs early |
-| `release` | Release | Off | The fast build that goes into the Docker image |
+```bash
+./build/release/src/server/matchforge_server --config config/server.json
+```
 
-Shared settings, in the `base` preset:
+| Option or variable | Meaning |
+|---|---|
+| `--config <file>` | settings file; without it, built-in defaults are used |
+| `--port <n>` | overrides the port from the config |
+| `MATCHFORGE_REDIS_HOST`, `MATCHFORGE_REDIS_PORT` | override the Redis address |
+| `MATCHFORGE_RESULT_SECRET` | the secret game servers send with results; unset means results are rejected |
 
-- `generator: Ninja`: the build tool that runs the compiler, faster than make.
-- `CMAKE_TOOLCHAIN_FILE`: points CMake at vcpkg, so it can find the libraries in `vcpkg.json`.
-- `VCPKG_INSTALLED_DIR`: installs the libraries into `vcpkg_installed/` in the project folder. Docker uses the same location, so the libraries are cached in one layer.
-- `binaryDir`: each preset builds into its own folder (`build/debug`, `build/release`), so the two never overwrite each other.
+Settings in `config/server.json`: port, frame limit, metrics port, worker threads, Redis
+address, matching interval, rating window, K-factor, regions, modes, and the abuse limits.
+Unknown or out-of-range values stop the server with a message naming the setting.
 
-The `buildPresets` and `testPresets` sections let `cmake --build --preset debug` and `ctest --preset debug` pick the matching configuration without repeating the settings.
+## Protocol summary
+
+| Client sends | Server answers |
+|---|---|
+| `Heartbeat` | `Heartbeat` (server clock) |
+| `RegisterRequest`, `LoginRequest` | `AuthResponse` (token, rating) or `ErrorResponse` |
+| `JoinQueueRequest` (after login) | `QueueStatus`, later `MatchFound` |
+| `LeaveQueueRequest` | `QueueStatus{queued=false}` |
+| `ReportMatchResult` (game servers, with secret) | `MatchResultAck` (new ratings) |
+
+Error codes follow HTTP: 400 bad request, 401 not logged in or bad credentials, 403 not
+allowed, 404 unknown match, 409 conflict, 429 too many requests, 503 storage unavailable.
+
+## Load simulator
+
+`matchforge_bots --bots 100 --rounds 5 --mode duel --region eu [--secret <s>]` prints matches
+joined, errors, and time to match (average, p50, p95, max). Run `--help` for every option.
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| `VCPKG_ROOT` is empty, or `cmake --preset` says it cannot find the toolchain file | Your shell did not load `~/.bashrc`. Run `export VCPKG_ROOT=$HOME/vcpkg` in the same terminal, or open a new interactive terminal. |
-| libsodium fails with "requires the following programs from the system package manager: autoconf-archive" | Run `sudo apt install -y autoconf autoconf-archive automake libtool`, then build again. |
-| CMake says it cannot find Ninja | Install it with `sudo apt install -y ninja-build`. |
-| A build fails with `-Werror` on your own code | That is the strict warning rule working. Read the first line of the error. It names the warning, for example `unused-variable`. Fix the code instead of removing `-Werror`. |
+| `VCPKG_ROOT` is empty | Run `export VCPKG_ROOT=$HOME/vcpkg`, or open a new interactive terminal. |
+| libsodium fails, needs `autoconf-archive` | `sudo apt install -y autoconf autoconf-archive automake libtool` |
+| CMake cannot find Ninja | `sudo apt install -y ninja-build` |
+| `-Werror` stops the build | Fix the warning the first error line names; do not remove `-Werror`. |
+| Server exits with "invalid config" | The message names the setting; fix it in the JSON file. |
+| Results are rejected with 403 | Set `MATCHFORGE_RESULT_SECRET` for the server and the reporter. |
 
 ## Learn more
 
-- [docs/milestone-0-explained.md](docs/milestone-0-explained.md): how the build, vcpkg, Protobuf, Docker, and CI fit together, with interview questions.
+- [docs/file-guide.md](docs/file-guide.md): every file explained: what it does, how it works, and why. Start here to understand the code.
+- [docs/architecture.md](docs/architecture.md): modules, threads and strands, message flow.
+- [docs/milestone-0-explained.md](docs/milestone-0-explained.md): the build, vcpkg, Protobuf, Docker, CI.
+- [docs/milestones-explained.md](docs/milestones-explained.md): milestones 1 to 9, with design
+  choices and interview questions.
+- `.workflow/`: the spec, plan, decisions and evidence for every milestone.
 
-## Run with Docker
+## Known limits
 
-```bash
-docker compose -f deploy/docker-compose.yml up --build
-```
-
-The server container prints its version and exits. Redis keeps running.
+No TLS yet, one server process holds the queue (no horizontal scaling), and rate limits are
+per connection and per username, not per IP address. See `docs/architecture.md`.

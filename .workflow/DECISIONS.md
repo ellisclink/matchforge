@@ -34,6 +34,44 @@
 - Decision: proto/CMakeLists.txt uses add_custom_command to run protoc. It does not use the protobuf_generate helper.
 - Reason: The helper's TARGET form needs CMake 3.23. This machine has CMake 3.22.1.
 - Rejected alternatives: Upgrading CMake (extra install, and the user did not ask for it).
+## D-020 (2026-10-13): OpenSSL added as an explicit dependency
+- Decision: vcpkg.json lists openssl; CMake finds OpenSSL and links it into matchforge_store.
+- Reason: Boost.Redis includes Asio's SSL headers even without TLS. The boost-redis port does not install OpenSSL, so the build failed with "openssl/conf.h: No such file".
+- Not used: TLS. Connections to Redis and clients are plain for now (see BACKLOG.md).
+## D-021 (2026-10-13): Password and session design (Milestone 2)
+- Hashing: Argon2id with libsodium's interactive limits (about 64 MB and 50 to 100 ms per hash). Hashing runs on 4 worker threads, never on network threads.
+- Login timing: a dummy hash is checked when the account does not exist, so response time does not reveal which usernames exist.
+- Errors: wrong password and unknown user give the same 401 message.
+- Usernames: stored lowercase, so "Alice" and "alice" are one account.
+- Sessions: 256-bit random token (URL-safe base64, 43 characters), kept in Redis for 24 hours.
+- Rejected alternatives: bcrypt (less memory-hard), scrypt (libsodium Argon2id is the choice in CLAUDE.md), plain sessions in memory (lost on restart).
+## D-022 (2026-10-13): Redis calls are blocking calls made from worker threads
+- Decision: RedisAccountStore runs Boost.Redis on its own I/O thread. Callers (auth workers) wait for each command to finish.
+- Reason: Boost.Redis objects are not thread-safe, and CLAUDE.md forbids blocking network threads. Blocking a worker thread is acceptable.
+- Known limit: one connection serves all workers. Under load, use a connection pool (backlog).
+## D-023 (2026-10-13): Project version 0.2.0
+- Decision: project() VERSION and vcpkg version-string are 0.2.0.
+- Reason: Milestone 2 adds accounts.
+## D-019 (2026-10-13): Runtime image is ubuntu:24.04 again; supersedes D-010
+- Decision: the runtime stage uses ubuntu:24.04, the same release as the build stage.
+- Reason: from v1 the server is built with Ubuntu 24.04's C library and C++ runtime (GLIBC_2.38, GLIBCXX_3.4.32). debian:bookworm-slim does not have them. With bookworm, the container crashed on start: "version GLIBCXX_3.4.32 not found". The earlier bookworm test passed only because the Milestone 0 binary used fewer symbols. The risk noted in D-010 happened.
+- Rejected alternatives: building the binary on bookworm (would need a Debian build stage); static linking (more work for little gain now).
+- Lesson: test the runtime image with the binary you ship, every time the code changes.
+## D-015 (2026-10-13): Remaining milestones built from the overall goal
+- Decision: v1 to v9 follow ROADMAP.md. The user asked for the rest of the features to be built from CLAUDE.md's overall goal, with no milestone prompts.
+- Reason: the user delegated this. The order is the one proposed earlier.
+- Rejected alternatives: waiting for milestone prompts (the user does not have them).
+## D-016 (2026-10-13): The server now runs until stopped; supersedes D-011's exit-after-log behavior
+- Decision: matchforge_server listens on a port (default 7777) and runs until SIGINT or SIGTERM. Compose uses restart: unless-stopped and publishes port 7777.
+- Reason: a server that exits cannot accept clients. D-011 was written for Milestone 0 only.
+- Rejected alternatives: keeping the exit-after-log behavior behind a flag (adds a mode with no use).
+## D-017 (2026-10-13): Frame size limit is 64 KiB
+- Decision: any frame whose length header is above 65536 bytes closes the connection without a reply.
+- Reason: a limit stops a client from making the server buffer unlimited memory. 64 KiB is far above any planned message.
+- Rejected alternatives: no limit (unsafe); a configurable limit now (config arrives in v8).
+## D-018 (2026-10-13): Error policy
+- Decision: a message that does not parse gets ErrorResponse code 400 and the connection then closes. A valid envelope with no payload or with an ErrorResponse gets ErrorResponse 400 and the connection stays open.
+- Reason: after a bad frame the byte stream is not trustworthy, so the connection closes. A well-formed but unsupported message is only a bad request, so the connection stays open.
 ## D-011 (ACCEPTED 2026-10-13): AC-5 means both containers start
 - Decision: the server container starts, logs its version, and exits 0. Redis stays running and healthy. This is how AC-5 is read.
 - Reason: AC-3 requires the server to exit after logging. A long-running server belongs to a later milestone.
@@ -59,3 +97,37 @@
 ## D-008: Spec and plan approved (2026-10-12)
 - Decision: SPEC.md (7 acceptance criteria) and PLAN.md (4 phases) approved as written. Phase 1 may begin.
 - Reason: User review, including the plain-English summary.
+
+## D-024 (2026-10-13): Matching algorithm
+- Decision: sort each (mode, region) bucket by rating; accept a run of 2*teamSize consecutive players when its spread fits the widest waiting window in the run (base 100, +10 per second, max 600); split teams with a snake draft.
+- Reason: simple, O(n log n), deterministic, and a long-waiting player is always eventually matched.
+- Rejected alternatives: global assignment minimising total spread (more complex, harder to explain); narrowest window in the group (newcomers would block long waiters).
+## D-025 (2026-10-13): Lobby on one strand with a 250 ms matching tick
+- Decision: LobbyService owns the Matchmaker on a single strand; sessions post requests; a timer runs findMatches every tick (configurable).
+- Reason: CLAUDE.md concurrency rule; no locks; batching gives the matcher more choice and bounds CPU.
+- Rejected alternatives: mutex around the matchmaker; matching on every join.
+## D-026 (2026-10-13): Results come from game servers with a shared secret
+- Decision: ReportMatchResult must carry MATCHFORGE_RESULT_SECRET (env only), compared in constant time; each match can be reported once, within 2 hours.
+- Reason: players cannot be trusted to report their own wins.
+- Rejected alternatives: player votes (collusion), per-match signed tokens (more moving parts; possible later).
+## D-027 (2026-10-13): Rating updates
+- Decision: Elo with team-average ratings, K = 32; change computed from match-time ratings and applied with SETNX + INCRBY.
+- Reason: atomic relative updates never lose a result when two arrive for one player at once.
+- Rejected alternatives: read-modify-write SET (lost updates).
+## D-028 (2026-10-13): Bot simulator design
+- Decision: one blocking client thread per bot; report p50/p95; compose "load" profile.
+- Reason: simple and realistic enough for hundreds of bots; percentiles expose tail latency.
+## D-029 (2026-10-13): Configuration file
+- Decision: config/server.json via nlohmann-json; optional fields with defaults; strict types, ranges and unknown-key errors; secrets only from the environment.
+## D-030 (2026-10-13): Per-connection limits
+- Decision: token bucket 20 msg/s with burst 40 (429 when empty, disconnect after 50 refusals in a row, after flushing replies); idle timeout 60 s.
+## D-031 (2026-10-13): Login lockout per username
+- Decision: 5 wrong passwords in 5 minutes lock the name for 5 minutes; locked attempts get 429 without hashing.
+- Trade-off accepted: someone can lock a known username for 5 minutes. Per-IP limits are backlog.
+## D-032 (2026-10-13): Metrics and dashboards
+- Decision: prometheus-cpp pull endpoint on :9100; components take an optional Metrics*; Prometheus scrapes every 5 s; Grafana provisioned from repo files; both UIs bound to 127.0.0.1.
+- Rejected alternatives: push gateway (extra service), global metrics singleton (hidden state in tests).
+## D-033 (2026-10-13): Framing as its own library
+- Decision: matchforge_framing holds only Framing.cpp so clients (bots) do not link the server.
+## D-034 (2026-10-13): Version 0.9.0
+- Decision: project and vcpkg version 0.9.0 after milestone 9. 1.0.0 is reserved for after TLS and a review.
