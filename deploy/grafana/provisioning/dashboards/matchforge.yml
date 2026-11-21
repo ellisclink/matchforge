@@ -1,0 +1,9 @@
+# Tells Grafana to load dashboard JSON files from a folder at startup.
+apiVersion: 1
+
+providers:
+  - name: matchforge
+    folder: matchforge
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards   # mounted from deploy/grafana/dashboards
