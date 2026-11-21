@@ -1,0 +1,11 @@
+# Prometheus settings for the local stack. Prometheus fetches ("scrapes") the server's
+# /metrics endpoint on a schedule and stores the values as time series.
+global:
+  scrape_interval: 5s       # how often to fetch; short so local graphs react quickly
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: matchforge
+    static_configs:
+      # "server" is the compose service name; Docker's DNS resolves it on the shared network.
+      - targets: ["server:9100"]
