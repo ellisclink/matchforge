@@ -1,0 +1,18 @@
+# Tells editors (VS Code, Visual Studio, JetBrains, etc.) how to lay out text.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C++ sources and headers: 4 spaces, as decided in D-004.
+[*.{cpp,h,hpp,proto}]
+indent_style = space
+indent_size = 4
+
+# Config and CI files are YAML and JSON, which read better with 2 spaces.
+[*.{json,yml,yaml,md}]
+indent_style = space
+indent_size = 2
