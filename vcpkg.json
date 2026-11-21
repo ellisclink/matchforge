@@ -1,0 +1,17 @@
+{
+  "name": "matchforge",
+  "version-string": "0.9.0",
+  "description": "Multiplayer lobby and Elo matchmaking server in C++.",
+  "dependencies": [
+    "boost-asio",
+    "boost-redis",
+    "openssl",
+    "protobuf",
+    "gtest",
+    "spdlog",
+    "nlohmann-json",
+    "libsodium",
+    "prometheus-cpp"
+  ],
+  "builtin-baseline": "e456309491fd875487bf02b8a0dca76c1b1b00cc"
+}
