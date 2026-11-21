@@ -1,0 +1,77 @@
+# Builds and tests matchforge on every push and pull request.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Least privilege: this workflow only reads the repo. It cannot write to it,
+# so a compromised dependency in a build step cannot push code.
+permissions:
+  contents: read
+
+# When you push again to the same branch, cancel the older run that is still
+# going. This saves runner time and gives you the result for the newest code.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    # A cold vcpkg build of Boost can take a long time. This stops a hung job from running forever.
+    timeout-minutes: 90
+
+    strategy:
+      # Keep the other preset running if one fails, so you see both results.
+      fail-fast: false
+      matrix:
+        # debug: with sanitizers. release: the optimised build that ships in Docker.
+        preset: [debug, release]
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Check formatting
+        # Pinned to clang-format 14.0.6, the version we check locally. A newer
+        # version can format code differently and fail for no real reason.
+        # --break-system-packages lets pip install into the runner's Python.
+        run: |
+          python3 -m pip install --user --break-system-packages -q clang-format==14.0.6
+          git ls-files '*.cpp' '*.h' | xargs "$HOME/.local/bin/clang-format" --dry-run --Werror
+
+      - name: Install build tools
+        # autoconf-archive is needed to build libsodium from source inside vcpkg.
+        run: sudo apt-get update && sudo apt-get install -y ninja-build autoconf autoconf-archive automake libtool jq
+
+      - name: Set vcpkg locations
+        # Later steps read these from the environment. $GITHUB_ENV makes them
+        # available to every step that follows.
+        run: |
+          echo "VCPKG_ROOT=$HOME/vcpkg" >> "$GITHUB_ENV"
+          echo "VCPKG_BINARY_SOURCES=clear;files,$HOME/vcpkg-archives,readwrite" >> "$GITHUB_ENV"
+
+      - name: Clone vcpkg at the pinned baseline
+        # The baseline commit lives in vcpkg.json, so CI and local builds use the same libraries.
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git "$HOME/vcpkg"
+          git -C "$HOME/vcpkg" checkout "$(jq -r '."builtin-baseline"' vcpkg.json)"
+          "$HOME/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Restore built packages
+        # Rebuilding Boost from source takes a long time. Keyed on vcpkg.json,
+        # so the cache is reused until dependencies change.
+        uses: actions/cache@v4
+        with:
+          path: ~/vcpkg-archives
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('vcpkg.json') }}
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Test
+        run: ctest --preset ${{ matrix.preset }}
