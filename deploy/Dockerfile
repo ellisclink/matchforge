@@ -1,0 +1,56 @@
+# Multi-stage build: the first stage compiles the server with all the tools,
+# and the second stage copies only the finished program into a small image.
+
+# ---- Stage 1: build ---------------------------------------------------------
+FROM ubuntu:24.04 AS build
+
+ENV DEBIAN_FRONTEND=noninteractive
+# Package versions are not pinned: Ubuntu security updates would break a pinned build.
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake ninja-build git curl zip unzip tar pkg-config \
+        autoconf autoconf-archive automake libtool ca-certificates jq \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone vcpkg at the same baseline as vcpkg.json. The clone is done before the
+# project files are copied, so Docker can reuse this layer when only code changes.
+ENV VCPKG_ROOT=/opt/vcpkg
+WORKDIR /src
+COPY vcpkg.json ./
+RUN git clone https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT" \
+    && git -C "$VCPKG_ROOT" checkout "$(jq -r '."builtin-baseline"' vcpkg.json)" \
+    && "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+
+# Install the libraries as their own layer. It is rebuilt only when vcpkg.json
+# changes, which saves a long Boost build on every code change.
+RUN "$VCPKG_ROOT/vcpkg" install --x-manifest-root=/src --x-install-root=/src/vcpkg_installed
+
+# Now copy the source code and build the release preset.
+COPY . .
+RUN cmake --preset release && cmake --build --preset release
+
+# ---- Stage 2: runtime -------------------------------------------------------
+# Same Ubuntu release as the build stage. The server is built against Ubuntu 24.04's
+# C library and C++ runtime (GLIBC 2.38+, GLIBCXX 3.4.32), and Debian bookworm has
+# older ones, so the binary would not start there.
+FROM ubuntu:24.04 AS runtime
+
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Run as a non-root user, so a bug in the server cannot change system files.
+RUN useradd --system --no-create-home --shell /usr/sbin/nologin matchforge
+
+COPY --from=build /src/build/release/src/server/matchforge_server /usr/local/bin/matchforge_server
+# The bot load simulator ships in the same image; compose runs it on demand (profile "load").
+COPY --from=build /src/build/release/src/bots/matchforge_bots /usr/local/bin/matchforge_bots
+
+USER matchforge
+# Default settings. Mount a different file over this path to change them without rebuilding.
+COPY config/server.json /etc/matchforge/server.json
+
+# Documentation only: the game port and the Prometheus metrics port.
+EXPOSE 7777 9100
+
+ENTRYPOINT ["/usr/local/bin/matchforge_server", "--config", "/etc/matchforge/server.json"]
