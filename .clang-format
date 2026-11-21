@@ -1,0 +1,19 @@
+# clang-format rules for matchforge. Run before committing:
+#   clang-format -i <file>          (rewrite a file in place)
+#   clang-format --dry-run --Werror <file>   (fail if a file is not formatted)
+#
+# Start from Google's rules, then change only what the project needs.
+BasedOnStyle: Google
+
+# Indent width is 4 spaces (decision D-004). Google's default is 2.
+IndentWidth: 4
+ContinuationIndentWidth: 4
+ConstructorInitializerIndentWidth: 4
+AccessModifierOffset: -4
+
+# Line length for readability in side-by-side diffs and on small screens.
+ColumnLimit: 100
+
+# Includes are grouped and sorted so diffs stay small when headers change.
+SortIncludes: CaseSensitive
+IncludeBlocks: Regroup
